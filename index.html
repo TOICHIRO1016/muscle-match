@@ -1,0 +1,1450 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1c2023">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box;height:100%}body{margin:0;font-size:14px}</style>
+<title>マッスルマッチ</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap">
+<style>
+/* Layout: one-screen game with two views (training calendar / board). Rubber gym-floor ground, chalk-white type, plate colors carry the pieces; specials are steel and gold. Deliberately single dark theme. */
+:root {
+  --floor: #1c2023;
+  --mat: #262b2f;
+  --mat-line: #30363b;
+  --chalk: #f1efe8;
+  --chalk-dim: #a3a9ad;
+  --accent: #f0b429;
+  --good: #4fbc7f;
+  --steel: #626c74;
+  --steel-d: #2c3237;
+  --gold: #ffe08a;
+  --gold-d: #d9971a;
+  --t0: #d9473f; --t0h: #ec6a61;
+  --t1: #3b7dd8; --t1h: #5f9bec;
+  --t2: #d99a1e; --t2h: #efbb4d;
+  --t3: #2f9a5f; --t3h: #4fbc7f;
+  --t4: #8456cf; --t4h: #a47ce6;
+  --display: "Dela Gothic One", "Hiragino Sans", "Yu Gothic", sans-serif;
+  --body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", sans-serif;
+  --d-swap: 170ms;
+  --d-fall: 280ms;
+  --d-pop: 220ms;
+  color-scheme: dark;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --d-swap: 60ms; --d-fall: 90ms; --d-pop: 80ms; }
+}
+html, body { height: 100%; }
+body {
+  background: var(--floor);
+  color: var(--chalk);
+  font-family: var(--body);
+  -webkit-user-select: none; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+}
+.app {
+  height: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 10px;
+  box-sizing: border-box;
+}
+header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+h1 { font-family: var(--display); font-weight: 400; font-size: 1.15rem; min-width: 0; overflow: hidden; margin: 0; letter-spacing: .02em; white-space: nowrap; }
+h1 span { color: var(--accent); }
+.tools { display: flex; gap: 6px; }
+.pill {
+  font: 700 .78rem var(--body);
+  color: var(--chalk);
+  background: var(--mat);
+  border: 1px solid var(--mat-line);
+  border-radius: 999px;
+  padding: 7px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pill[aria-pressed="false"] { color: var(--chalk-dim); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+#gameView { justify-content: center; }
+
+/* ----- トレーニング記録（ステージ選択） ----- */
+.menu-top { display: flex; justify-content: space-between; align-items: end; gap: 12px; }
+.menu-top h2 { font-family: var(--display); font-weight: 400; font-size: 1.35rem; margin: 0; }
+.menu-top p { margin: 2px 0 0; font-size: .8rem; color: var(--chalk-dim); }
+.total { text-align: right; }
+.total .num { font-family: var(--display); font-size: 1.4rem; color: var(--accent); font-variant-numeric: tabular-nums; }
+.weeks { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding-bottom: 8px; }
+.week-h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.week-h b { font-family: var(--display); font-weight: 400; font-size: .95rem; letter-spacing: .06em; }
+.week-h span { font-size: .75rem; color: var(--chalk-dim); font-variant-numeric: tabular-nums; }
+.days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.dayb {
+  aspect-ratio: 4 / 5;
+  max-width: 100%;
+  border-radius: 10px;
+  background: var(--mat);
+  border: 1px solid var(--mat-line);
+  color: var(--chalk);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--body);
+}
+.dayb .d { font-size: .58rem; color: var(--chalk-dim); font-weight: 700; letter-spacing: .04em; }
+.dayb .p { font-family: var(--display); font-size: 1.15rem; line-height: 1.1; }
+.dayb .s { font-size: .58rem; letter-spacing: .05em; color: var(--mat-line); }
+.dayb .s i { font-style: normal; color: var(--accent); }
+.dayb.bossday .p { color: var(--t0h); }
+[hidden] { display: none !important; }
+.dayb.next { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 14px rgba(240, 180, 41, .25); }
+.dayb.locked { opacity: .32; cursor: default; }
+.legend { font-size: .75rem; color: var(--chalk-dim); line-height: 1.6; margin: 0; }
+
+/* ----- ゲーム画面 ----- */
+.hud { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: stretch; }
+.day { min-width: 0; }
+.label { font-size: .68rem; letter-spacing: .12em; color: var(--chalk-dim); font-weight: 700; }
+.day-num { font-family: var(--display); font-size: 1rem; color: var(--accent); }
+.day-name { font-weight: 700; font-size: 1rem; }
+.moves { text-align: center; background: var(--mat); border-radius: 12px; padding: 6px 14px; min-width: 72px; }
+.moves .num { font-family: var(--display); font-size: 1.9rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.moves.low .num { color: var(--t0h); }
+
+.goals { display: flex; flex-wrap: wrap; gap: 8px; }
+.goal {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--mat);
+  border-radius: 10px;
+  padding: 4px 10px 4px 4px;
+  font-family: var(--display);
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  transition: transform 120ms;
+}
+.goal.bump { transform: scale(1.12); }
+.goal.done .count { color: var(--good); }
+.mini {
+  width: 28px; height: 28px; border-radius: 8px; flex: none;
+  display: grid; place-items: center;
+  background: linear-gradient(160deg, var(--hi), var(--c));
+  color: var(--chalk);
+}
+.mini svg { width: 70%; height: 70%; fill: currentColor; }
+.mini[data-o] { background: var(--mat-line); }
+.mini[data-o] svg { width: 88%; height: 88%; }
+.score-line { display: flex; justify-content: space-between; align-items: baseline; font-size: .85rem; color: var(--chalk-dim); }
+.score-line b { font-family: var(--display); font-weight: 400; color: var(--chalk); font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+
+.board-wrap { position: relative; }
+#board {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  touch-action: none;
+}
+.cell, .tile, .obs {
+  position: absolute; left: 0; top: 0;
+  width: 12.5%; height: 12.5%;
+}
+.cell { background: var(--mat); box-shadow: inset 0 0 0 .5px var(--mat-line); z-index: 0; }
+.cell.r-tl { border-top-left-radius: 10px; } .cell.r-tr { border-top-right-radius: 10px; }
+.cell.r-bl { border-bottom-left-radius: 10px; } .cell.r-br { border-bottom-right-radius: 10px; }
+[data-t="0"] { --c: var(--t0); --hi: var(--t0h); }
+[data-t="1"] { --c: var(--t1); --hi: var(--t1h); }
+[data-t="2"] { --c: var(--t2); --hi: var(--t2h); }
+[data-t="3"] { --c: var(--t3); --hi: var(--t3h); }
+[data-t="4"] { --c: var(--t4); --hi: var(--t4h); }
+.tile {
+  z-index: 1;
+  transition: transform var(--d-fall) cubic-bezier(.35,.1,.35,1);
+  will-change: transform;
+}
+.tile.swap { transition-duration: var(--d-swap); }
+.tile .in {
+  position: absolute; inset: 7%;
+  border-radius: 22%;
+  display: grid; place-items: center;
+  background: linear-gradient(160deg, var(--hi), var(--c));
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,.22), 0 2px 0 rgba(0,0,0,.25);
+  color: var(--chalk);
+  transition: transform 120ms;
+}
+.tile .in svg { width: 66%; height: 66%; fill: currentColor; }
+
+/* 障害物 */
+.obs { z-index: 2; }
+.obs .in { position: absolute; inset: 3%; display: grid; place-items: center; }
+.obs .in svg { width: 100%; height: 100%; }
+.obs.hit .in { animation: shake 260ms; }
+.obs.gone .in { animation: pop var(--d-pop) ease-in forwards; }
+.crack { fill: none; stroke: var(--accent); stroke-width: 2.4; stroke-linecap: round; opacity: 0; }
+.obs.cracked .crack { opacity: 1; }
+@keyframes shake { 25% { transform: translateX(-6%) rotate(-4deg); } 75% { transform: translateX(6%) rotate(4deg); } }
+
+/* ロッカー（アイテムの上にかぶさる） */
+.lockov { position: absolute; left: 0; top: 0; width: 12.5%; height: 12.5%; z-index: 2; pointer-events: none; }
+.lockov svg { position: absolute; inset: 4%; width: 92%; height: 92%; }
+.lockov.born svg { animation: born 320ms cubic-bezier(.2,.9,.3,1.4); }
+.lockov.gone svg { animation: unlock 300ms ease-in forwards; }
+@keyframes unlock { 40% { transform: scale(1.15); } 100% { transform: scale(.4) translateY(-30%); opacity: 0; } }
+.tile.locked .in { filter: saturate(.55) brightness(.75); }
+
+/* ボス */
+.boss { position: absolute; z-index: 2; width: 25%; height: 25%; padding: 1.5%; box-sizing: border-box; }
+.boss svg { width: 100%; height: 100%; display: block; }
+.boss .hp { position: absolute; left: 10%; right: 10%; bottom: 6%; height: 9%; background: rgba(0,0,0,.65); border-radius: 99px; overflow: hidden; box-shadow: 0 0 0 1.5px var(--chalk); }
+.boss .hp i { display: block; height: 100%; width: 100%; background: var(--t0h); transition: width 200ms; }
+.boss.hit svg { animation: shake 260ms; }
+.boss.angry svg { animation: angry 420ms; }
+.boss.gone { animation: pop 400ms ease-in forwards; }
+@keyframes angry { 30% { transform: scale(1.12) rotate(-3deg); } 60% { transform: scale(1.12) rotate(3deg); } }
+
+/* 特殊アイテム */
+.tile[data-sp] .in, .mini[data-sp] {
+  background: linear-gradient(160deg, var(--steel), var(--steel-d));
+  color: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent), inset 0 -3px 0 rgba(0,0,0,.3), 0 2px 0 rgba(0,0,0,.3);
+}
+.tile[data-sp] .in svg { width: 80%; height: 80%; }
+.tile[data-sp="color"] .in, .mini[data-sp="color"] {
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-d) 45%, var(--gold) 55%, var(--gold-d) 100%);
+  background-size: 250% 250%;
+  color: var(--steel-d);
+  box-shadow: inset 0 0 0 2px var(--chalk), 0 0 10px rgba(255, 210, 100, .55);
+  animation: shimmer 2.2s linear infinite;
+}
+@keyframes shimmer { from { background-position: 0% 0%; } to { background-position: 100% 100%; } }
+.ball-line { fill: none; stroke: var(--steel-d); stroke-width: 2.4; }
+.tile.born .in { animation: born 320ms cubic-bezier(.2,.9,.3,1.4); }
+@keyframes born { from { transform: scale(1.6); } to { transform: scale(1); } }
+
+.tile.sel .in { transform: scale(1.1); box-shadow: 0 0 0 3px var(--chalk), 0 4px 10px rgba(0,0,0,.4); }
+.tile.pop .in { animation: pop var(--d-pop) ease-in forwards; }
+.tile.hint .in { animation: nudge 900ms ease-in-out infinite; }
+@keyframes pop { 30% { transform: scale(1.18); } 100% { transform: scale(0); opacity: 0; } }
+@keyframes nudge { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+
+.fx { position: absolute; pointer-events: none; z-index: 3; animation: fx 420ms ease-out forwards; }
+.fx.line { background: linear-gradient(90deg, transparent, var(--gold), var(--chalk), var(--gold), transparent); }
+.fx.line.v { background: linear-gradient(180deg, transparent, var(--gold), var(--chalk), var(--gold), transparent); }
+.fx.boom { border-radius: 50%; background: radial-gradient(circle, var(--chalk) 0%, var(--gold) 35%, rgba(240, 180, 41, 0) 70%); }
+.fx.all { inset: 0; background: radial-gradient(circle, rgba(255, 224, 138, .9), rgba(255, 224, 138, 0) 75%); }
+@keyframes fx { 0% { opacity: 0; transform: scale(.6); } 25% { opacity: 1; } 100% { opacity: 0; transform: scale(1.1); } }
+
+.toast {
+  position: absolute; left: 50%; top: 42%;
+  transform: translate(-50%, -50%);
+  font-family: var(--display);
+  font-size: 1.6rem;
+  color: var(--chalk);
+  text-align: center;
+  text-shadow: 0 3px 0 rgba(0,0,0,.45), 0 0 18px rgba(0,0,0,.6);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: rise 900ms ease-out forwards;
+  z-index: 5;
+}
+.toast em { font-style: normal; color: var(--accent); }
+.toast small { font-size: .6em; }
+@keyframes rise {
+  0% { opacity: 0; transform: translate(-50%, -30%) scale(.8); }
+  20% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -90%) scale(1); }
+}
+
+.overlay {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  background: rgba(20, 23, 26, .82);
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+  border-radius: 14px;
+  z-index: 10;
+  padding: 12px;
+  box-sizing: border-box;
+}
+.card {
+  width: 100%; max-width: 320px;
+  max-height: 100%; overflow-y: auto;
+  box-sizing: border-box;
+  background: var(--floor);
+  border: 1px solid var(--mat-line);
+  border-radius: 16px;
+  padding: 18px 16px;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  text-align: center;
+  animation: cardIn 260ms cubic-bezier(.2,.9,.3,1.2);
+}
+@keyframes cardIn { from { transform: scale(.85); opacity: 0; } to { transform: none; opacity: 1; } }
+.card .big { font-family: var(--display); font-size: 1.6rem; line-height: 1.2; }
+.card .big.good { color: var(--accent); }
+.card p { margin: 0; color: var(--chalk-dim); font-size: .9rem; line-height: 1.6; }
+.guide { display: flex; flex-direction: column; gap: 10px; width: 100%; text-align: left; }
+.guide .row { display: grid; grid-template-columns: 36px 1fr; gap: 10px; align-items: center; }
+.guide .mini { width: 36px; height: 36px; border-radius: 10px; }
+.guide .mini svg { width: 82%; height: 82%; }
+.guide b { display: block; font-size: .92rem; }
+.guide span.how { font-size: .78rem; color: var(--chalk-dim); line-height: 1.45; }
+.guide h3 { margin: 4px 0 0; font-size: .75rem; letter-spacing: .12em; color: var(--chalk-dim); }
+.stars { display: flex; gap: 6px; }
+.stars svg { width: 40px; height: 40px; fill: var(--mat-line); }
+.stars svg.on { fill: var(--accent); animation: starIn 360ms cubic-bezier(.2,.9,.3,1.4) both; }
+@keyframes starIn { from { transform: scale(0) rotate(-40deg); } to { transform: none; } }
+.btns { display: flex; gap: 8px; width: 100%; }
+.btn {
+  flex: 1;
+  font: 700 .95rem var(--body);
+  border-radius: 12px;
+  padding: 12px 10px;
+  border: 0;
+  cursor: pointer;
+  color: var(--floor);
+  background: var(--accent);
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,.2);
+}
+.btn.sub { background: var(--mat); color: var(--chalk); }
+.howto { font-size: .78rem; color: var(--chalk-dim); text-align: center; line-height: 1.5; margin: 0; }
+</style>
+
+<div class="app">
+  <header>
+    <h1>マッスル<span>マッチ</span></h1>
+    <div class="tools">
+      <button class="pill" id="sound" type="button" aria-pressed="true">音 ON</button>
+      <button class="pill" id="help" type="button" aria-label="遊び方">？</button>
+      <button class="pill" id="retry" type="button" aria-label="やり直し" hidden>↻</button>
+      <button class="pill" id="toMenu" type="button" hidden>メニュー</button>
+    </div>
+  </header>
+
+  <section class="view" id="menuView">
+    <div class="menu-top">
+      <div>
+        <h2>トレーニング記録</h2>
+        <p>1日1種目。7日目はコーチとのボス戦</p>
+      </div>
+      <div class="total"><div class="label">獲得スター</div><div class="num" id="totalStars">0</div></div>
+    </div>
+    <div class="weeks" id="weeks"></div>
+  </section>
+
+  <section class="view" id="gameView" hidden>
+    <div class="hud">
+      <div class="day">
+        <div class="day-num" id="dayNum">DAY 1</div>
+        <div class="day-name" id="dayName">ベンチプレス</div>
+      </div>
+      <div class="moves" id="movesBox">
+        <div class="label">残り手数</div>
+        <div class="num" id="moves">20</div>
+      </div>
+    </div>
+    <div class="goals" id="goals"></div>
+    <div class="score-line"><span>総挙上量</span><span><b id="score">0</b> kg</span></div>
+    <div class="board-wrap" id="wrap">
+      <div id="board" aria-label="ゲーム盤"></div>
+    </div>
+    <p class="howto">4つ以上そろえると特殊アイテム。障害物はとなりで消すか、アイテムで壊そう</p>
+  </section>
+</div>
+
+<script>
+(() => {
+  const N = 8, TYPES = 5;
+  const ICONS = [
+    '<svg viewBox="0 0 40 40"><rect x="9" y="18" width="22" height="4" rx="1"/><rect x="6" y="10" width="5" height="20" rx="1.5"/><rect x="29" y="10" width="5" height="20" rx="1.5"/><rect x="2" y="14" width="4" height="12" rx="1"/><rect x="34" y="14" width="4" height="12" rx="1"/></svg>',
+    '<svg viewBox="0 0 40 40"><path d="M13 18v-5a7 7 0 0 1 14 0v5" fill="none" stroke="currentColor" stroke-width="3.6"/><circle cx="20" cy="25.5" r="10.5"/></svg>',
+    '<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="12" fill="none" stroke="currentColor" stroke-width="7"/><circle cx="20" cy="20" r="3"/></svg>',
+    '<svg viewBox="0 0 40 40"><rect x="14" y="3" width="12" height="5" rx="1.5"/><rect x="12" y="9" width="16" height="4" rx="1"/><path d="M12 15h16l-1.6 19.5a2.5 2.5 0 0 1-2.5 2.5h-7.8a2.5 2.5 0 0 1-2.5-2.5z"/></svg>',
+    '<svg viewBox="0 0 40 40"><path d="M24 3 9 23h9.5l-3.5 14 16-21h-9.5z"/></svg>'
+  ];
+  const BARBELL = '<rect x="2" y="18.5" width="36" height="3" rx="1"/><rect x="7" y="9" width="4" height="22" rx="1"/><rect x="12" y="12.5" width="3" height="15" rx="1"/><rect x="29" y="9" width="4" height="22" rx="1"/><rect x="25" y="12.5" width="3" height="15" rx="1"/><path d="M0 20l3-3v6z M40 20l-3-3v6z"/>';
+  const SP_ICONS = {
+    h: `<svg viewBox="0 0 40 40">${BARBELL}</svg>`,
+    v: `<svg viewBox="0 0 40 40"><g transform="rotate(90 20 20)">${BARBELL}</g></svg>`,
+    bomb: '<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="15"/><path class="ball-line" d="M5.5 20h29M20 5c-7 5-7 25 0 30M20 5c7 5 7 25 0 30"/></svg>',
+    color: '<svg viewBox="0 0 40 40"><rect x="14" y="3" width="12" height="5" rx="1.5"/><rect x="12" y="9" width="16" height="4" rx="1"/><path d="M12 15h16l-1.6 19.5a2.5 2.5 0 0 1-2.5 2.5h-7.8a2.5 2.5 0 0 1-2.5-2.5z"/><path d="M20 19.5l1.4 2.9 3.2.4-2.3 2.2.6 3.1-2.9-1.5-2.9 1.5.6-3.1-2.3-2.2 3.2-.4z" fill="#fff"/></svg>'
+  };
+  const OBS_ICONS = {
+    box: '<svg viewBox="0 0 40 40"><rect x="2" y="5" width="36" height="30" rx="2.5" fill="#b8874f"/><path d="M2 13h36" stroke="#8a6234" stroke-width="2"/><rect x="16.5" y="5" width="7" height="30" fill="#e6cf9f"/><rect x="6" y="19" width="7" height="9" rx="1" fill="#8a6234" opacity=".5"/><rect x="27" y="19" width="7" height="9" rx="1" fill="#8a6234" opacity=".5"/></svg>',
+    tire: '<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#26292b"/><circle cx="20" cy="20" r="15.5" fill="none" stroke="#3f4447" stroke-width="5" stroke-dasharray="3.2 2.4"/><circle cx="20" cy="20" r="7.5" fill="#15181a"/><circle cx="20" cy="20" r="7.5" fill="none" stroke="#5b6266" stroke-width="2"/><path class="crack" d="M20 2.5l-3 5.5 4 3-3 5M37 22l-6 1-1 4"/></svg>'
+  };
+  OBS_ICONS.sweat = '<svg viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="10" fill="#6fa9cf" opacity=".6"/><path d="M14 7c-4.5 6.5-6.5 9.5-6.5 12.5a6.5 6.5 0 0 0 13 0c0-3-2-6-6.5-12.5z" fill="#d4ecfa"/><path d="M27.5 17c-3.2 4.4-4.7 6.8-4.7 8.9a4.7 4.7 0 0 0 9.4 0c0-2.1-1.5-4.5-4.7-8.9z" fill="#d4ecfa"/><path d="M12 31.5c4 1.5 12 1.5 16 0" stroke="#d4ecfa" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
+  OBS_ICONS.locker = '<svg viewBox="0 0 40 40"><rect x="2.5" y="2.5" width="35" height="35" rx="6" fill="none" stroke="#b9c2c8" stroke-width="3"/><path d="M2.5 11h35M2.5 29h35" stroke="#b9c2c8" stroke-width="2.6"/><path d="M8 6.5h10M8 33h10" stroke="#b9c2c8" stroke-width="1.6" stroke-linecap="round"/><rect x="14.5" y="18" width="11" height="9" rx="1.6" fill="#f0b429"/><path d="M16.8 18v-2.6a3.2 3.2 0 0 1 6.4 0V18" stroke="#f0b429" stroke-width="2.2" fill="none"/><circle cx="20" cy="22.5" r="1.4" fill="#2c3237"/></svg>';
+  OBS_ICONS.boss = '<svg viewBox="0 0 80 80"><rect x="1" y="1" width="78" height="78" rx="12" fill="#3b2b2b"/><rect x="1" y="1" width="78" height="78" rx="12" fill="none" stroke="#d9473f" stroke-width="2.5"/><path d="M8 79c2-15 14-22 32-22s30 7 32 22z" fill="#d9473f"/><path d="M27 57v22M53 57v22" stroke="#3b2b2b" stroke-width="3"/><rect x="34" y="50" width="12" height="9" fill="#d9a070"/><circle cx="40" cy="33" r="18" fill="#e3b080"/><rect x="21" y="21" width="38" height="7" rx="2" fill="#f0b429"/><path d="M28.5 31.5l8 2.5M51.5 31.5l-8 2.5" stroke="#2c1d14" stroke-width="2.8" stroke-linecap="round"/><circle cx="33.5" cy="37.5" r="2" fill="#2c1d14"/><circle cx="46.5" cy="37.5" r="2" fill="#2c1d14"/><path d="M34 45.5q6 -3 12 0" stroke="#2c1d14" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M31 57l9 8 9-8" stroke="#f1efe8" stroke-width="1.6" fill="none"/><rect x="36" y="63" width="9" height="5" rx="2" fill="#c5ccd1"/></svg>';
+  const OBS_INFO = { box: { hp: 1, name: 'プロテインの箱' }, tire: { hp: 2, name: 'タイヤ' }, sweat: { hp: 1, name: '汗' } };
+  const SP_NAMES = { h: 'バーベル', v: 'バーベル', bomb: 'メディシンボール', color: 'ゴールデンプロテイン' };
+  const STAR = '<svg viewBox="0 0 24 24"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg>';
+
+  // ---------- ステージ ----------
+  // マス目: "." 通常 / "x" 穴（マスなし） / "b" プロテインの箱（1回で壊れる） / "t" タイヤ（2回で壊れる）
+  const PARTS = ['胸', '背中', '脚', '肩', '腕', '腹', 'ボス'];
+  const PART_SHORT = ['胸', '背', '脚', '肩', '腕', '腹', '鬼'];
+  const EXERCISES = [
+    ['ベンチプレス', 'インクラインベンチ', 'ダンベルフライ', 'ケーブルクロス', '腕立て伏せ'],
+    ['懸垂', 'デッドリフト', 'ラットプルダウン', 'ベントオーバーロウ', 'シーテッドロウ'],
+    ['スクワット', 'ブルガリアンスクワット', 'レッグプレス', 'ランジ', 'カーフレイズ'],
+    ['ショルダープレス', 'サイドレイズ', 'リアレイズ', 'アップライトロウ', 'フェイスプル'],
+    ['アームカール', 'ディップス', 'ハンマーカール', 'フレンチプレス', 'プリーチャーカール'],
+    ['クランチ', 'プランク', 'レッグレイズ', 'アブローラー', 'ロシアンツイスト'],
+    ['ゴリ松コーチ', 'マッチョ山トレーナー', '鬼塚コーチ', '鉄田トレーナー', '剛力コーチ']
+  ];
+  const F = '........';
+  const SHAPES = {
+    full:     [F, F, F, F, F, F, F, F],
+    corners:  ['x......x', F, F, F, F, F, F, 'x......x'],
+    cross:    ['xx....xx', 'xx....xx', F, F, F, F, 'xx....xx', 'xx....xx'],
+    dumbbell: ['...xx...', '...xx...', F, F, F, F, '...xx...', '...xx...'],
+    diamond:  ['xx....xx', 'x......x', F, F, F, F, 'x......x', 'xx....xx'],
+    plate:    ['xx....xx', 'x......x', F, '...xx...', '...xx...', F, 'x......x', 'xx....xx'],
+    kettle:   ['xx....xx', 'xx.xx.xx', F, F, F, F, 'x......x', 'xx....xx']
+  };
+  const HAND = [
+    // WEEK 1
+    { part: 0, name: 'ベンチプレス', moves: 20, goals: { 0: 10 }, layout: SHAPES.full },
+    { part: 1, name: '懸垂', moves: 22, goals: { 1: 12 }, layout: [F, F, F, '..bbbb..', F, F, F, F] },
+    { part: 2, name: 'スクワット', moves: 22, goals: { 2: 15 }, layout: SHAPES.corners },
+    { part: 3, name: 'ショルダープレス', moves: 22, goals: { 0: 10 }, layout: ['...xx...', '...xx...', F, F, '..l..l..', '.l....l.', '...xx...', '...xx...'] },
+    { part: 4, name: 'アームカール', moves: 22, goals: { 3: 12 }, layout: [F, F, '.t....t.', F, F, '.t....t.', F, F] },
+    { part: 5, name: 'クランチ', moves: 24, goals: {}, layout: ['xx....xx', 'x......x', F, F, F, '...ss...', 'x.ssss.x', 'xx....xx'] },
+    { part: 6, name: 'ゴリ松コーチ', moves: 22, bossHp: 30, goals: {}, layout: [F, F, '...BB...', '...BB...', F, F, F, F] },
+    // WEEK 2
+    { part: 0, name: 'インクラインベンチ', moves: 24, goals: { 0: 15 }, layout: ['xx....xx', 'x......x', F, '.bb..bb.', '.bb..bb.', F, 'x......x', 'xx....xx'] },
+    { part: 1, name: 'デッドリフト', moves: 24, goals: { 2: 18, 4: 12 }, layout: SHAPES.cross },
+    { part: 2, name: 'ブルガリアンスクワット', moves: 25, goals: { 1: 12 }, layout: ['...xx...', '...xx...', '.t....t.', '...tt...', F, '.t....t.', '...xx...', '...xx...'] },
+    { part: 3, name: 'サイドレイズ', moves: 24, goals: { 3: 14 }, layout: ['xx....xx', 'xx.xx.xx', F, F, 'l..ll..l', F, 'x......x', 'xx....xx'] },
+    { part: 4, name: 'ディップス', moves: 26, goals: { 0: 10 }, layout: [F, 'bb....bb', 'bb....bb', '...ss...', F, 'bb....bb', 'bb....bb', F] },
+    { part: 5, name: 'プランク', moves: 26, goals: { 4: 12 }, layout: ['xx....xx', 'x..ll..x', '...tt...', '..t..t..', '..s..s..', F, 'x......x', 'xx....xx'] },
+    { part: 6, name: 'マッチョ山トレーナー', moves: 24, bossHp: 40, goals: {}, layout: ['xx....xx', 'x......x', F, '...BB...', '...BB...', '.l....l.', 'x......x', 'xx....xx'] }
+  ];
+  function rng(seed) {
+    let a = seed >>> 0;
+    return () => {
+      a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  // WEEK 3以降は自動生成（同じDAYは毎回同じ内容）
+  function genStage(i) {
+    const w = Math.floor(i / 7), d = i % 7, R = rng(i * 7919 + 13);
+    const pick = arr => arr[Math.floor(R() * arr.length)];
+    const name = EXERCISES[d][w % 5];
+    const bossDay = d === 6;
+    const base = (bossDay ? pick([SHAPES.full, SHAPES.corners, SHAPES.diamond, SHAPES.cross]) : pick(Object.values(SHAPES))).map(s => s.split(''));
+    if (bossDay) { base[3][3] = base[3][4] = base[4][3] = base[4][4] = 'B'; }
+    const open = [];
+    base.forEach((row, r) => row.forEach((ch, c) => { if (ch === '.') open.push([r, c]); }));
+    const place = (n, ch) => {
+      for (let k = 0; k < n && open.length; k++) {
+        const [r, c] = open.splice(Math.floor(R() * open.length), 1)[0];
+        base[r][c] = ch;
+      }
+    };
+    if (bossDay) {
+      place(Math.min(w, 6), 'l');
+      return { part: d, name, moves: 24, bossHp: Math.min(30 + w * 5, 70), goals: {}, layout: base.map(r => r.join('')) };
+    }
+    place(Math.min(4 + w, 12), 'b');
+    if (w >= 3) place(Math.min(w - 1, 6), 't');
+    if (w >= 2) place(2 + Math.floor(R() * 3), 'l');
+    if (w >= 2 && R() < 0.45) place(2 + Math.floor(R() * 2), 's');
+    const a = Math.floor(R() * TYPES);
+    let b = Math.floor(R() * TYPES); if (b === a) b = (a + 2) % TYPES;
+    const n = Math.min(10 + w * 2, 24);
+    const goals = R() < 0.5 ? { [a]: n + 4 } : { [a]: n, [b]: n };
+    return { part: d, name, moves: 24 + Math.floor(R() * 4), goals, layout: base.map(r => r.join('')) };
+  }
+  const getStage = i => (i < HAND.length ? HAND[i] : genStage(i));
+  const partLabel = s => (s.part === 6 ? 'ボス戦' : PARTS[s.part] + 'の日');
+
+  const D = (() => {
+    const cs = getComputedStyle(document.documentElement);
+    const ms = v => parseFloat(cs.getPropertyValue(v)) || 0;
+    return { swap: ms('--d-swap'), fall: ms('--d-fall'), pop: ms('--d-pop') };
+  })();
+  const CHEERS = ['', '', 'ナイスセット！', 'いいパンプ！', 'ゾーン突入！', 'ビーストモード！'];
+
+  const $ = id => document.getElementById(id);
+  const board = $('board'), wrap = $('wrap');
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const rand = () => Math.floor(Math.random() * TYPES);
+  const keyOf = tile => tile.r * N + tile.c;
+  const tileAt = k => grid[Math.floor(k / N)][k % N];
+  const obsAt = k => obs[Math.floor(k / N)][k % N];
+  const holeAt = k => hole[Math.floor(k / N)][k % N];
+  const inB = (r, c) => r >= 0 && r < N && c >= 0 && c < N;
+
+  // ---------- 保存 ----------
+  let progress = { unlocked: 0, stars: {} }, soundOn = true, seenGuide = false;
+  try {
+    const p = JSON.parse(localStorage.getItem('mm-progress') || 'null');
+    if (p && typeof p.unlocked === 'number') progress = p;
+    soundOn = localStorage.getItem('mm-sound') !== 'off';
+    seenGuide = localStorage.getItem('mm-guide3') === '1';
+  } catch (e) {}
+  const save = () => { try { localStorage.setItem('mm-progress', JSON.stringify(progress)); } catch (e) {} };
+
+  // ---------- サウンド（Web Audioで合成） ----------
+  let ac = null, master = null;
+  function unlockAudio() {
+    try {
+      if (!ac) {
+        ac = new (window.AudioContext || window.webkitAudioContext)();
+        master = ac.createGain();
+        master.gain.value = 0.5;
+        master.connect(ac.destination);
+      }
+      if (ac.state === 'suspended') ac.resume();
+    } catch (e) {}
+  }
+  ['pointerdown', 'touchend', 'click'].forEach(ev => document.addEventListener(ev, unlockAudio, { capture: true, passive: true }));
+
+  function tone(freq, dur, { type = 'sine', vol = 0.3, to = null, delay = 0, attack = 0.005 } = {}) {
+    if (!soundOn || !ac) return;
+    const t0 = ac.currentTime + delay;
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t0);
+    if (to) o.frequency.exponentialRampToValueAtTime(to, t0 + dur);
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(vol, t0 + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(master);
+    o.start(t0); o.stop(t0 + dur + 0.02);
+  }
+  function noise(dur, { vol = 0.2, freq = 1800, to = null, delay = 0 } = {}) {
+    if (!soundOn || !ac) return;
+    const t0 = ac.currentTime + delay;
+    const len = Math.floor(ac.sampleRate * dur);
+    const buf = ac.createBuffer(1, len, ac.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const src = ac.createBufferSource(); src.buffer = buf;
+    const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.2;
+    f.frequency.setValueAtTime(freq, t0);
+    if (to) f.frequency.exponentialRampToValueAtTime(to, t0 + dur);
+    const g = ac.createGain();
+    g.gain.setValueAtTime(vol, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(f); f.connect(g); g.connect(master);
+    src.start(t0);
+  }
+  const NOTES = [523, 587, 659, 784, 880, 1047, 1175, 1319];
+  const SFX = {
+    swap()    { tone(520, 0.06, { type: 'triangle', vol: 0.18 }); },
+    invalid() { tone(220, 0.08, { type: 'square', vol: 0.1 }); tone(165, 0.12, { type: 'square', vol: 0.1, delay: 0.09 }); },
+    match(chain) {
+      noise(0.12, { vol: 0.25, freq: 2600 });
+      tone(880, 0.25, { vol: 0.08 }); tone(2310, 0.18, { vol: 0.05 });
+      const n = NOTES[Math.min(chain - 1, NOTES.length - 1)];
+      tone(n, 0.22, { type: 'triangle', vol: 0.22, delay: 0.02 });
+    },
+    spawn()   { tone(660, 0.28, { type: 'triangle', vol: 0.2, to: 1320 }); tone(1980, 0.3, { vol: 0.06, delay: 0.12 }); },
+    line()    { noise(0.35, { vol: 0.35, freq: 600, to: 4000 }); tone(300, 0.3, { type: 'sawtooth', vol: 0.06, to: 1200 }); },
+    bomb()    { tone(150, 0.55, { vol: 0.5, to: 40 }); noise(0.4, { vol: 0.45, freq: 350, to: 120 }); },
+    color()   { [1047, 1319, 1568, 2093, 2637, 3136].forEach((f, i) => tone(f, 0.25, { vol: 0.12, delay: i * 0.05 })); noise(0.5, { vol: 0.12, freq: 5000 }); },
+    box()     { noise(0.14, { vol: 0.3, freq: 900, to: 300 }); tone(180, 0.12, { type: 'triangle', vol: 0.15 }); },
+    sweat()   { noise(0.18, { vol: 0.25, freq: 3000, to: 900 }); tone(900, 0.1, { vol: 0.08, to: 500 }); },
+    drip()    { tone(1400, 0.12, { vol: 0.15, to: 600 }); tone(700, 0.15, { vol: 0.08, to: 350, delay: 0.08 }); },
+    unlock()  { tone(1200, 0.05, { type: 'square', vol: 0.08 }); tone(1600, 0.08, { type: 'square', vol: 0.08, delay: 0.05 }); noise(0.1, { vol: 0.15, freq: 3500, delay: 0.04 }); },
+    lock()    { noise(0.08, { vol: 0.3, freq: 1200 }); tone(260, 0.12, { type: 'square', vol: 0.12, delay: 0.03 }); },
+    bossHit() { tone(130, 0.18, { type: 'square', vol: 0.18, to: 70 }); noise(0.1, { vol: 0.2, freq: 700 }); },
+    whistle() { tone(2400, 0.35, { vol: 0.12, to: 2600 }); tone(2400, 0.12, { vol: 0.12, delay: 0.42 }); },
+    bossDown(){ tone(300, 0.7, { type: 'sawtooth', vol: 0.12, to: 60 }); [784, 988, 1175, 1568].forEach((f, i) => tone(f, 0.25, { type: 'triangle', vol: 0.18, delay: 0.4 + i * 0.09 })); },
+    tire()    { tone(95, 0.22, { vol: 0.45, to: 55 }); noise(0.1, { vol: 0.15, freq: 250 }); },
+    land()    { noise(0.06, { vol: 0.08, freq: 400 }); },
+    select()  { tone(700, 0.05, { type: 'triangle', vol: 0.12 }); },
+    clear()   { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.3, { type: 'triangle', vol: 0.22, delay: i * 0.11 })); },
+    star(i)   { tone(1047 + i * 260, 0.35, { vol: 0.2 }); tone(2094 + i * 520, 0.25, { vol: 0.06 }); },
+    fail()    { [392, 330, 262].forEach((f, i) => tone(f, 0.35, { type: 'triangle', vol: 0.2, delay: i * 0.16 })); },
+    start()   { tone(440, 0.12, { type: 'triangle', vol: 0.18 }); tone(660, 0.18, { type: 'triangle', vol: 0.18, delay: 0.1 }); }
+  };
+
+  const soundBtn = $('sound');
+  function renderSound() { soundBtn.textContent = soundOn ? '音 ON' : '音 OFF'; soundBtn.setAttribute('aria-pressed', String(soundOn)); }
+  soundBtn.addEventListener('click', () => {
+    soundOn = !soundOn;
+    try { localStorage.setItem('mm-sound', soundOn ? 'on' : 'off'); } catch (e) {}
+    renderSound();
+    if (soundOn) { unlockAudio(); SFX.select(); }
+  });
+  renderSound();
+
+  // ---------- ゲーム状態 ----------
+  let grid = [], obs = [], hole = [], lockMask = [], lockEls = [];
+  let bossObj = null, movesUsed = 0, sweatCleared = false;
+  const isLocked = (r, c) => !!(lockMask[r] && lockMask[r][c]);
+  const isLockedK = k => isLocked(Math.floor(k / N), k % N);
+  let busy = true, score = 0, selected = null, hintTimer = null, hinted = [];
+  let stageIdx = 0, stage = null, moves = 0, goals = {};
+
+  function posStyle(el, r, c) { el.style.transform = `translate(${c * 100}%, ${r * 100}%)`; }
+  function makeTile(t) {
+    const el = document.createElement('div');
+    el.className = 'tile';
+    el.innerHTML = '<div class="in"></div>';
+    const tile = { t, sp: null, el, r: 0, c: 0 };
+    setType(tile, t);
+    board.appendChild(el);
+    return tile;
+  }
+  function setType(tile, t) {
+    tile.t = t; tile.sp = null;
+    tile.el.dataset.t = t;
+    delete tile.el.dataset.sp;
+    tile.el.firstChild.innerHTML = ICONS[t];
+  }
+  function setSpecial(tile, sp) {
+    tile.t = -1; tile.sp = sp;
+    delete tile.el.dataset.t;
+    tile.el.dataset.sp = sp;
+    tile.el.firstChild.innerHTML = SP_ICONS[sp];
+    tile.el.classList.remove('born');
+    tile.el.offsetWidth;
+    tile.el.classList.add('born');
+  }
+  function place(tile, r, c) { tile.r = r; tile.c = c; posStyle(tile.el, r, c); }
+  const isSlot = (r, c) => inB(r, c) && !hole[r][c] && !obs[r][c];
+
+  function safeTypes() {
+    let types, tries = 0;
+    do {
+      types = [];
+      for (let r = 0; r < N; r++) {
+        types.push([]);
+        for (let c = 0; c < N; c++) {
+          if (!isSlot(r, c)) { types[r].push(-1); continue; }
+          let t;
+          do { t = rand(); } while (
+            (c >= 2 && types[r][c - 1] === t && types[r][c - 2] === t) ||
+            (r >= 2 && types[r - 1][c] === t && types[r - 2][c] === t)
+          );
+          types[r].push(t);
+        }
+      }
+    } while (!findMove(types) && ++tries < 300);
+    return types;
+  }
+  const typesOf = () => grid.map(row => row.map(t => (t ? t.t : -1)));
+
+  function findRuns(types) {
+    const runs = [];
+    for (let r = 0; r < N; r++) {
+      let run = 1;
+      for (let c = 1; c <= N; c++) {
+        if (c < N && types[r][c] !== -1 && types[r][c] === types[r][c - 1]) run++;
+        else {
+          if (run >= 3) runs.push({ dir: 'h', cells: Array.from({ length: run }, (_, i) => r * N + (c - run + i)) });
+          run = 1;
+        }
+      }
+    }
+    for (let c = 0; c < N; c++) {
+      let run = 1;
+      for (let r = 1; r <= N; r++) {
+        if (r < N && types[r][c] !== -1 && types[r][c] === types[r - 1][c]) run++;
+        else {
+          if (run >= 3) runs.push({ dir: 'v', cells: Array.from({ length: run }, (_, i) => (r - run + i) * N + c) });
+          run = 1;
+        }
+      }
+    }
+    return runs;
+  }
+  const hasMatch = types => findRuns(types).length > 0;
+
+  function findGroups(types, focus) {
+    const runs = findRuns(types);
+    const parent = runs.map((_, i) => i);
+    const find = i => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+    const owner = new Map(), count = new Map();
+    runs.forEach((run, i) => run.cells.forEach(k => {
+      count.set(k, (count.get(k) || 0) + 1);
+      if (owner.has(k)) parent[find(i)] = find(owner.get(k)); else owner.set(k, i);
+    }));
+    const groups = new Map();
+    runs.forEach((run, i) => {
+      const g = find(i);
+      if (!groups.has(g)) groups.set(g, { runs: [], cells: new Set() });
+      groups.get(g).runs.push(run);
+      run.cells.forEach(k => groups.get(g).cells.add(k));
+    });
+    const cells = new Set(), spawns = [];
+    for (const g of groups.values()) {
+      g.cells.forEach(k => cells.add(k));
+      const longest = g.runs.reduce((a, b) => (b.cells.length > a.cells.length ? b : a));
+      const hasH = g.runs.some(r => r.dir === 'h'), hasV = g.runs.some(r => r.dir === 'v');
+      let sp = null;
+      if (longest.cells.length >= 5) sp = 'color';
+      else if (hasH && hasV) sp = 'bomb';
+      else if (longest.cells.length === 4) sp = longest.dir;
+      if (!sp) continue;
+      let k = [...g.cells].find(x => focus.has(x));
+      if (k === undefined && sp === 'bomb') k = [...g.cells].find(x => count.get(x) > 1);
+      if (k === undefined) k = longest.cells[Math.floor(longest.cells.length / 2)];
+      if (isLockedK(k)) { k = [...g.cells].find(x => !isLockedK(x)); if (k === undefined) continue; }
+      spawns.push({ k, sp });
+    }
+    return { cells, spawns };
+  }
+
+  function findMove(types) {
+    const t = types.map(row => row.slice());
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      for (const [dr, dc] of [[0, 1], [1, 0]]) {
+        const r2 = r + dr, c2 = c + dc;
+        if (r2 >= N || c2 >= N) continue;
+        if (t[r][c] === -1 || t[r2][c2] === -1 || isLocked(r, c) || isLocked(r2, c2)) continue;
+        [t[r][c], t[r2][c2]] = [t[r2][c2], t[r][c]];
+        const ok = hasMatch(t);
+        [t[r][c], t[r2][c2]] = [t[r2][c2], t[r][c]];
+        if (ok) return [[r, c], [r2, c2]];
+      }
+    }
+    return null;
+  }
+  function anySpecial() {
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (grid[r][c]?.sp) return [[r, c]];
+    return null;
+  }
+
+  // ---------- HUD ----------
+  function miniHtml(key) {
+    return isNaN(key)
+      ? `<span class="mini" data-o="${key}">${OBS_ICONS[key]}</span>`
+      : `<span class="mini" data-t="${key}">${ICONS[key]}</span>`;
+  }
+  function renderHud() {
+    $('dayNum').textContent = `DAY ${stageIdx + 1}・${partLabel(stage)}`;
+    $('dayName').textContent = stage.name;
+    $('moves').textContent = moves;
+    $('movesBox').classList.toggle('low', moves <= 5);
+    $('score').textContent = score.toLocaleString();
+  }
+  function renderGoals() {
+    const box = $('goals');
+    box.innerHTML = '';
+    for (const key of Object.keys(goals)) {
+      const el = document.createElement('div');
+      el.className = 'goal';
+      el.id = 'goal-' + key;
+      el.innerHTML = `${miniHtml(key)}<span class="count">${goals[key]}</span>`;
+      box.appendChild(el);
+    }
+  }
+  function updateGoal(key) {
+    const el = $('goal-' + key);
+    if (!el) return;
+    el.querySelector('.count').textContent = goals[key] > 0 ? goals[key] : '✓';
+    el.classList.toggle('done', goals[key] <= 0);
+    el.classList.add('bump');
+    setTimeout(() => el.classList.remove('bump'), 140);
+  }
+  const goalsDone = () => Object.values(goals).every(v => v <= 0);
+  const goalsHtml = g => Object.keys(g).map(k => `<span class="goal">${miniHtml(k)}${g[k]}</span>`).join('');
+
+  // ---------- オーバーレイ ----------
+  function overlayHost() { return $('gameView').hidden ? $('menuView') : wrap; }
+  function showOverlay(html, actions) {
+    hideOverlay();
+    const ov = document.createElement('div');
+    ov.className = 'overlay';
+    ov.id = 'overlay';
+    ov.innerHTML = `<div class="card">${html}<div class="btns">${actions.map((a, i) => `<button class="btn ${a.sub ? 'sub' : ''}" data-i="${i}" type="button">${a.label}</button>`).join('')}</div></div>`;
+    ov.addEventListener('click', e => {
+      const b = e.target.closest('button[data-i]');
+      if (b) actions[+b.dataset.i].fn();
+    });
+    const host = overlayHost();
+    host.style.position = 'relative';
+    host.appendChild(ov);
+    ov.querySelector('.btn')?.focus({ preventScroll: true });
+  }
+  function hideOverlay() { $('overlay')?.remove(); }
+
+  const GUIDE_HTML = `
+    <div class="big" style="font-size:1.25rem">遊び方</div>
+    <div class="guide">
+      <h3>特殊アイテム（タップ or 入れ替えで発動）</h3>
+      <div class="row"><span class="mini" data-sp="h">${SP_ICONS.h}</span><div><b>バーベル</b><span class="how">4つ一直線でできる。向きに合わせて一列まとめて消す</span></div></div>
+      <div class="row"><span class="mini" data-sp="bomb">${SP_ICONS.bomb}</span><div><b>メディシンボール</b><span class="how">L字・T字でできる。周りの5×5マスを吹き飛ばす</span></div></div>
+      <div class="row"><span class="mini" data-sp="color">${SP_ICONS.color}</span><div><b>ゴールデンプロテイン</b><span class="how">5つ一直線でできる。入れ替えた相手と同じアイテムを全部消す</span></div></div>
+      <h3>連鎖ボーナス</h3>
+      <div class="row"><span class="mini" data-sp="color">${SP_ICONS.color}</span><div><b>連鎖するとアイテムが出る</b><span class="how">3連鎖でバーベル、5連鎖でメディシンボール、7連鎖でゴールデンプロテインが盤面に出現</span></div></div>
+      <h3>障害物</h3>
+      <div class="row">${miniHtml('box')}<div><b>プロテインの箱</b><span class="how">となりでそろえるか、アイテムに巻き込むと1回で壊れる</span></div></div>
+      <div class="row">${miniHtml('tire')}<div><b>タイヤ</b><span class="how">重いので2回当てないと壊れない</span></div></div>
+      <div class="row">${miniHtml('locker')}<div><b>ロッカー</b><span class="how">中のアイテムは動かせない。そのマスを含めてそろえると扉が開く</span></div></div>
+      <div class="row">${miniHtml('sweat')}<div><b>汗</b><span class="how">1手のあいだに1つも拭かないと、となりのマスに広がる</span></div></div>
+      <h3>ボス戦（毎週7日目）</h3>
+      <div class="row">${miniHtml('boss')}<div><b>コーチ</b><span class="how">となりで消すか、アイテムを当ててHPを0に。4手ごとに「喝！」でアイテムをロッカーに閉じこめてくる</span></div></div>
+    </div>
+    <p>特殊アイテム同士を入れ替えると合体技！</p>`;
+
+  function showGuide(onClose) {
+    const wasBusy = busy;
+    busy = true;
+    showOverlay(GUIDE_HTML, [{ label: 'OK', fn: () => {
+      try { localStorage.setItem('mm-guide3', '1'); } catch (e) {}
+      seenGuide = true;
+      if (onClose) onClose(); else { hideOverlay(); busy = wasBusy; }
+    } }]);
+  }
+
+  // ---------- メニュー（トレーニング記録） ----------
+  function showMenu() {
+    busy = true;
+    clearHint(); clearSel(); hideOverlay();
+    $('gameView').hidden = true;
+    $('menuView').hidden = false;
+    $('retry').hidden = true;
+    $('toMenu').hidden = true;
+    const unlocked = progress.unlocked;
+    const weeks = Math.floor(unlocked / 7) + 2;
+    let total = 0, html = '';
+    for (let w = 0; w < weeks; w++) {
+      let wStars = 0, days = '';
+      for (let d = 0; d < 7; d++) {
+        const i = w * 7 + d;
+        const st = progress.stars[i] || 0;
+        wStars += st;
+        const locked = i > unlocked;
+        const stars = '★★★'.split('').map((s, k) => (k < st ? `<i>${s}</i>` : s)).join('');
+        days += `<button type="button" class="dayb ${locked ? 'locked' : ''} ${i === unlocked ? 'next' : ''} ${d === 6 ? 'bossday' : ''}" data-i="${i}" ${locked ? 'aria-disabled="true"' : ''} aria-label="DAY ${i + 1} ${PARTS[d]}">
+          <span class="d">DAY ${i + 1}</span><span class="p">${PART_SHORT[d]}</span><span class="s">${locked ? '－' : stars}</span></button>`;
+      }
+      total += wStars;
+      html += `<section><div class="week-h"><b>WEEK ${w + 1}</b><span>★ ${wStars} / 21</span></div><div class="days">${days}</div></section>`;
+    }
+    $('weeks').innerHTML = html;
+    $('totalStars').textContent = total;
+    const next = $('weeks').querySelector('.dayb.next');
+    if (next) next.scrollIntoView({ block: 'center' });
+  }
+  $('weeks').addEventListener('click', e => {
+    const b = e.target.closest('.dayb');
+    if (!b || b.classList.contains('locked')) return;
+    SFX.select();
+    startStage(+b.dataset.i);
+  });
+
+  // ---------- ステージ開始 ----------
+  function startStage(i) {
+    stageIdx = i;
+    stage = getStage(i);
+    hideOverlay();
+    $('menuView').hidden = true;
+    $('gameView').hidden = false;
+    $('retry').hidden = false;
+    $('toMenu').hidden = false;
+    moves = stage.moves;
+    score = 0;
+    busy = true;
+    clearHint(); clearSel();
+    buildBoard();
+    goals = { ...stage.goals };
+    const L = stage.layout.join('');
+    const cnt = ch => L.split(ch).length - 1;
+    if (stage.bossHp) goals.boss = stage.bossHp;
+    if (cnt('b')) goals.box = cnt('b');
+    if (cnt('t')) goals.tire = cnt('t');
+    if (cnt('l')) goals.locker = cnt('l');
+    if (cnt('s')) goals.sweat = cnt('s');
+    movesUsed = 0;
+    sweatCleared = false;
+    renderHud(); renderGoals();
+    const stars = progress.stars[i] || 0;
+    const showStart = () => showOverlay(
+      `<div class="label">DAY ${i + 1}・${partLabel(stage)}</div>
+       <div class="big">${stage.name}</div>
+       <p>${stage.moves}手以内に${stage.bossHp ? 'コーチを倒そう' : 'クリアしよう'}</p>
+       <div class="goals" style="justify-content:center">${goalsHtml(goals)}</div>
+       ${stars ? `<div class="stars" style="transform:scale(.6)">${[0, 1, 2].map(k => STAR.replace('<svg', `<svg class="${k < stars ? 'on' : ''}"`)).join('')}</div>` : ''}`,
+      [
+        { label: 'メニュー', sub: true, fn: showMenu },
+        { label: 'スタート', fn: () => { hideOverlay(); busy = false; SFX.start(); scheduleHint(); } }
+      ]
+    );
+    if (!seenGuide) showGuide(showStart); else showStart();
+  }
+
+  function buildBoard() {
+    board.innerHTML = '';
+    grid = []; obs = []; hole = []; lockMask = []; lockEls = []; bossObj = null;
+    for (let r = 0; r < N; r++) {
+      grid.push(Array(N).fill(null));
+      obs.push(Array(N).fill(null));
+      lockEls.push(Array(N).fill(null));
+      hole.push(stage.layout[r].split('').map(ch => ch === 'x'));
+      lockMask.push(stage.layout[r].split('').map(ch => (ch === 'l' ? 1 : 0)));
+    }
+    // マス目の背景（角を丸める）
+    const open = (r, c) => inB(r, c) && !hole[r][c];
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      if (hole[r][c]) continue;
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      if (!open(r - 1, c) && !open(r, c - 1)) cell.classList.add('r-tl');
+      if (!open(r - 1, c) && !open(r, c + 1)) cell.classList.add('r-tr');
+      if (!open(r + 1, c) && !open(r, c - 1)) cell.classList.add('r-bl');
+      if (!open(r + 1, c) && !open(r, c + 1)) cell.classList.add('r-br');
+      posStyle(cell, r, c);
+      board.appendChild(cell);
+    }
+    // 障害物
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      const ch = stage.layout[r][c];
+      if (ch === 'B') {
+        if (obs[r][c]) continue;
+        const el = document.createElement('div');
+        el.className = 'boss';
+        el.style.left = c * 12.5 + '%';
+        el.style.top = r * 12.5 + '%';
+        el.innerHTML = `${OBS_ICONS.boss}<div class="hp"><i></i></div>`;
+        board.appendChild(el);
+        const o = { kind: 'boss', hp: stage.bossHp, max: stage.bossHp, el, bar: el.querySelector('.hp i'), cells: [] };
+        for (const [dr, dc] of [[0, 0], [0, 1], [1, 0], [1, 1]]) { obs[r + dr][c + dc] = o; o.cells.push([r + dr, c + dc]); }
+        bossObj = o;
+        continue;
+      }
+      const kind = ch === 'b' ? 'box' : ch === 't' ? 'tire' : ch === 's' ? 'sweat' : null;
+      if (kind) makeObs(kind, r, c);
+    }
+    // アイテム
+    const types = safeTypes();
+    const all = [];
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      if (types[r][c] === -1) continue;
+      const tile = makeTile(types[r][c]);
+      tile.el.style.transition = 'none';
+      place(tile, r - N, c);
+      tile.r = r; grid[r][c] = tile;
+      all.push(tile);
+    }
+    board.offsetWidth;
+    all.forEach(t => { t.el.style.transition = ''; place(t, t.r, t.c); });
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (lockMask[r][c] && grid[r][c]) addLock(r, c, 1, false);
+  }
+
+  function makeObs(kind, r, c) {
+    const el = document.createElement('div');
+    el.className = 'obs';
+    el.dataset.o = kind;
+    el.innerHTML = `<div class="in">${OBS_ICONS[kind]}</div>`;
+    posStyle(el, r, c);
+    board.appendChild(el);
+    obs[r][c] = { kind, hp: OBS_INFO[kind].hp, el };
+    return obs[r][c];
+  }
+  // v: 1 = ステージのロッカー（目標に数える） / 2 = コーチの喝で閉じこめられた
+  function addLock(r, c, v, anim = true) {
+    lockMask[r][c] = v;
+    const el = document.createElement('div');
+    el.className = 'lockov' + (anim ? ' born' : '');
+    el.innerHTML = OBS_ICONS.locker;
+    posStyle(el, r, c);
+    board.appendChild(el);
+    lockEls[r][c] = el;
+    grid[r][c]?.el.classList.add('locked');
+  }
+  function unlock(k) {
+    const r = Math.floor(k / N), c = k % N, v = lockMask[r][c];
+    lockMask[r][c] = 0;
+    const el = lockEls[r][c];
+    lockEls[r][c] = null;
+    if (el) { el.classList.add('gone'); setTimeout(() => el.remove(), 320); }
+    grid[r][c]?.el.classList.remove('locked');
+    if (v === 1 && goals.locker > 0) { goals.locker--; updateGoal('locker'); }
+  }
+
+  async function stageClear() {
+    busy = true;
+    clearHint();
+    const left = moves;
+    const bonus = left * 50;
+    score += bonus; renderHud();
+    const ratio = left / stage.moves;
+    const stars = ratio >= 0.4 ? 3 : ratio >= 0.2 ? 2 : 1;
+    progress.stars[stageIdx] = Math.max(progress.stars[stageIdx] || 0, stars);
+    progress.unlocked = Math.max(progress.unlocked, stageIdx + 1);
+    save();
+    SFX.clear();
+    toast('<em>クリア！</em>');
+    await sleep(900);
+    showOverlay(
+      `<div class="big good">トレーニング完了！</div>
+       <div class="stars">${[0, 1, 2].map(k => STAR.replace('<svg', `<svg class="${k < stars ? 'on' : ''}" style="animation-delay:${k * 0.25}s"`)).join('')}</div>
+       <p>${stage.name}　総挙上量 <b style="color:var(--chalk)">${score.toLocaleString()} kg</b><br>残り${left}手ボーナス +${bonus.toLocaleString()} kg</p>`,
+      [
+        { label: 'メニュー', sub: true, fn: showMenu },
+        { label: '次の日へ', fn: () => startStage(stageIdx + 1) }
+      ]
+    );
+    for (let k = 0; k < stars; k++) setTimeout(() => SFX.star(k), 250 + k * 250);
+  }
+
+  async function stageFail() {
+    busy = true;
+    clearHint();
+    SFX.fail();
+    await sleep(400);
+    const rest = {};
+    for (const t in goals) if (goals[t] > 0) rest[t] = goals[t];
+    showOverlay(
+      `<div class="big">手数切れ…</div>
+       <p>あと少し！残りの目標</p>
+       <div class="goals" style="justify-content:center">${goalsHtml(rest)}</div>`,
+      [
+        { label: 'メニュー', sub: true, fn: showMenu },
+        { label: 'もう一度', fn: () => startStage(stageIdx) }
+      ]
+    );
+  }
+
+  // ---------- 演出 ----------
+  function toast(html) {
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.innerHTML = html;
+    wrap.appendChild(el);
+    setTimeout(() => el.remove(), 950);
+  }
+  function flash(sp, k) {
+    const r = Math.floor(k / N), c = k % N, u = 12.5;
+    const el = document.createElement('div');
+    if (sp === 'h') { el.className = 'fx line'; Object.assign(el.style, { left: 0, width: '100%', top: r * u + '%', height: u + '%' }); }
+    else if (sp === 'v') { el.className = 'fx line v'; Object.assign(el.style, { top: 0, height: '100%', left: c * u + '%', width: u + '%' }); }
+    else if (sp === 'bomb') { el.className = 'fx boom'; Object.assign(el.style, { left: (c - 2) * u + '%', top: (r - 2) * u + '%', width: 5 * u + '%', height: 5 * u + '%' }); }
+    else el.className = 'fx all';
+    board.appendChild(el);
+    setTimeout(() => el.remove(), 450);
+  }
+
+  // ---------- 特殊アイテムの効果範囲 ----------
+  function mostCommonType() {
+    const cnt = Array(TYPES).fill(0);
+    grid.flat().forEach(t => { if (t && t.t >= 0) cnt[t.t]++; });
+    return cnt.indexOf(Math.max(...cnt));
+  }
+  function effectCells(sp, k, target) {
+    const r = Math.floor(k / N), c = k % N, out = [];
+    if (sp === 'h') for (let x = 0; x < N; x++) out.push(r * N + x);
+    else if (sp === 'v') for (let y = 0; y < N; y++) out.push(y * N + c);
+    else if (sp === 'bomb') {
+      for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) {
+        if (inB(r + dr, c + dc)) out.push((r + dr) * N + c + dc);
+      }
+    } else if (sp === 'color') {
+      const tt = target ?? mostCommonType();
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (grid[y][x]?.t === tt) out.push(y * N + x);
+    } else if (sp === 'all') {
+      for (let i = 0; i < N * N; i++) out.push(i);
+    }
+    return out;
+  }
+  function computeClear(matchCells, acts, spawnKeys) {
+    const clear = new Set(matchCells), hits = new Set(), fired = new Set(), effects = [];
+    // そろえたマスのとなりにある障害物にダメージ
+    for (const k of matchCells) {
+      const r = Math.floor(k / N), c = k % N;
+      for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        if (inB(r + dr, c + dc) && obs[r + dr][c + dc]) hits.add((r + dr) * N + c + dc);
+      }
+    }
+    const queue = [...acts];
+    while (queue.length) {
+      const a = queue.shift();
+      if (fired.has(a.k)) continue;
+      const tile = tileAt(a.k);
+      const sp = a.sp || tile?.sp;
+      if (!sp) continue;
+      fired.add(a.k);
+      if (tile) clear.add(a.k);
+      effects.push({ sp, k: a.k });
+      for (const k of effectCells(sp, a.k, a.target)) {
+        if (spawnKeys.has(k) || holeAt(k)) continue;
+        if (obsAt(k)) { hits.add(k); continue; }
+        const t = tileAt(k);
+        if (!t) continue;
+        clear.add(k);
+        if (t.sp && !fired.has(k)) queue.push({ k });
+      }
+    }
+    spawnKeys.forEach(k => clear.delete(k));
+    return { clear, hits, effects };
+  }
+  function damage(hits) {
+    const kinds = new Set();
+    let bossDown = false;
+    for (const k of hits) {
+      const o = obsAt(k);
+      if (!o) continue;
+      o.hp--;
+      kinds.add(o.kind);
+      if (o.kind === 'boss') {
+        goals.boss = Math.max(0, o.hp);
+        updateGoal('boss');
+        o.bar.style.width = Math.max(0, o.hp / o.max * 100) + '%';
+        if (o.hp <= 0) {
+          o.el.classList.add('gone');
+          setTimeout(() => o.el.remove(), 420);
+          o.cells.forEach(([r, c]) => (obs[r][c] = null));
+          bossObj = null;
+          bossDown = true;
+        } else {
+          o.el.classList.remove('hit');
+          o.el.offsetWidth;
+          o.el.classList.add('hit');
+        }
+        continue;
+      }
+      if (o.hp <= 0) {
+        o.el.classList.add('gone');
+        setTimeout(() => o.el.remove(), D.pop + 10);
+        obs[Math.floor(k / N)][k % N] = null;
+        if (o.kind === 'sweat') sweatCleared = true;
+        if (goals[o.kind] > 0) { goals[o.kind]--; updateGoal(o.kind); }
+      } else {
+        o.el.classList.add('cracked');
+        o.el.classList.remove('hit');
+        o.el.offsetWidth;
+        o.el.classList.add('hit');
+      }
+    }
+    if (kinds.has('box')) SFX.box();
+    if (kinds.has('tire')) SFX.tire();
+    if (kinds.has('sweat')) SFX.sweat();
+    if (bossDown) { SFX.bossDown(); setTimeout(() => toast('コーチ<em>撃破！</em>'), 200); }
+    else if (kinds.has('boss')) SFX.bossHit();
+  }
+
+  // ---------- 盤面操作 ----------
+  function swapCells(r1, c1, r2, c2) {
+    const a = grid[r1][c1], b = grid[r2][c2];
+    a.el.classList.add('swap'); b.el.classList.add('swap');
+    grid[r1][c1] = b; grid[r2][c2] = a;
+    place(b, r1, c1); place(a, r2, c2);
+    setTimeout(() => { a.el.classList.remove('swap'); b.el.classList.remove('swap'); }, D.swap + 20);
+  }
+
+  async function trySwap(r1, c1, r2, c2) {
+    if (busy) return;
+    if (!inB(r2, c2) || !grid[r1][c1] || !grid[r2][c2]) return;
+    if (isLocked(r1, c1) || isLocked(r2, c2)) { clearSel(); SFX.invalid(); return; }
+    busy = true;
+    clearHint(); clearSel();
+    const a = grid[r1][c1], b = grid[r2][c2];
+    SFX.swap();
+    swapCells(r1, c1, r2, c2);
+    await sleep(D.swap + 20);
+
+    const acts = [];
+    if (a.sp || b.sp) {
+      const col = a.sp === 'color' ? a : b.sp === 'color' ? b : null;
+      if (col) {
+        const other = col === a ? b : a;
+        if (other.sp) { acts.push({ k: keyOf(col), sp: 'all' }); pendingNote = '合体技！ <em>全消し</em>'; }
+        else acts.push({ k: keyOf(col), sp: 'color', target: other.t });
+      } else if (a.sp && b.sp) {
+        if (a.sp === 'bomb' || b.sp === 'bomb') {
+          acts.push({ k: keyOf(a), sp: 'bomb' });
+          for (const [dr, dc] of [[-3, 0], [3, 0], [0, -3], [0, 3]]) {
+            if (inB(a.r + dr, a.c + dc)) acts.push({ k: (a.r + dr) * N + a.c + dc, sp: 'bomb' });
+          }
+          pendingNote = '合体技！ <em>大爆発</em>';
+        } else {
+          acts.push({ k: keyOf(a), sp: 'h' }, { k: keyOf(b), sp: 'v' });
+          pendingNote = '合体技！ <em>クロス</em>';
+        }
+      } else {
+        if (a.sp) acts.push({ k: keyOf(a) });
+        if (b.sp) acts.push({ k: keyOf(b) });
+      }
+    } else if (!hasMatch(typesOf())) {
+      SFX.invalid();
+      swapCells(r1, c1, r2, c2);
+      await sleep(D.swap + 20);
+      busy = false;
+      scheduleHint();
+      return;
+    }
+    moves--;
+    renderHud();
+    await resolve(new Set([keyOf(a), keyOf(b)]), acts);
+    afterMove();
+  }
+
+  async function tapSpecial(r, c) {
+    if (busy) return;
+    busy = true;
+    clearHint(); clearSel();
+    moves--;
+    renderHud();
+    await resolve(new Set(), [{ k: r * N + c }]);
+    afterMove();
+  }
+
+  async function afterMove() {
+    if (goalsDone()) return stageClear();
+    movesUsed++;
+    await sweatSpread();
+    await bossAttack();
+    if (moves <= 0) return stageFail();
+    if (!anySpecial() && !findMove(typesOf())) await shuffle();
+    busy = false;
+    scheduleHint();
+  }
+
+  // 汗：1手のあいだに1つも拭かなかったら、となりのマスに1つ広がる
+  async function sweatSpread() {
+    if (sweatCleared) { sweatCleared = false; return; }
+    const cands = [];
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      if (obs[r][c]?.kind !== 'sweat') continue;
+      for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const y = r + dr, x = c + dc;
+        if (inB(y, x) && grid[y][x] && !grid[y][x].sp && !isLocked(y, x)) cands.push([y, x]);
+      }
+    }
+    if (!cands.length) return;
+    const [y, x] = cands[Math.floor(Math.random() * cands.length)];
+    const tile = grid[y][x];
+    tile.el.classList.add('pop');
+    setTimeout(() => tile.el.remove(), D.pop + 10);
+    grid[y][x] = null;
+    const o = makeObs('sweat', y, x);
+    o.el.classList.add('born');
+    goals.sweat = (goals.sweat || 0) + 1;
+    if (!$('goal-sweat')) renderGoals(); else updateGoal('sweat');
+    SFX.drip();
+    toast('汗が<em>広がった</em>');
+    await sleep(380);
+  }
+
+  // コーチの喝：4手ごとに、アイテム2つをロッカーに閉じこめる
+  async function bossAttack() {
+    if (!bossObj || movesUsed % 4 !== 0 || moves <= 0) return;
+    const pool = [];
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      const t = grid[r][c];
+      if (t && !t.sp && !isLocked(r, c)) pool.push([r, c]);
+    }
+    if (!pool.length) return;
+    bossObj.el.classList.remove('angry');
+    bossObj.el.offsetWidth;
+    bossObj.el.classList.add('angry');
+    SFX.whistle();
+    toast('コーチの<em>喝！</em><br><small>ロッカーに閉じこめられた</small>');
+    await sleep(420);
+    for (let i = 0; i < 2 && pool.length; i++) {
+      const [r, c] = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+      addLock(r, c, 2);
+    }
+    SFX.lock();
+    await sleep(380);
+  }
+
+  let pendingNote = null;
+
+  async function resolve(focus, acts, reward = true) {
+    let chain = 0;
+    while (true) {
+      const first = chain === 0;
+      const { cells, spawns } = findGroups(typesOf(), first ? focus : new Set());
+      const nowActs = first ? acts : [];
+      if (!cells.size && !nowActs.length) break;
+      chain++;
+      const spawnKeys = new Set(spawns.map(s => s.k));
+      const { clear, hits, effects } = computeClear(cells, nowActs, spawnKeys);
+
+      const touched = new Set();
+      for (const k of [...clear, ...spawnKeys]) {
+        const tile = tileAt(k);
+        if (tile && tile.t >= 0 && !isLockedK(k) && goals[tile.t] > 0) { goals[tile.t]--; touched.add(tile.t); }
+      }
+      touched.forEach(updateGoal);
+
+      const gain = (clear.size + spawnKeys.size) * 10 * chain + effects.length * 50 + hits.size * 20;
+      score += gain;
+      renderHud();
+
+      if (effects.length) {
+        const kinds = new Set(effects.map(e => e.sp));
+        if (kinds.has('all') || kinds.has('color')) SFX.color();
+        if (kinds.has('bomb')) SFX.bomb();
+        if (kinds.has('h') || kinds.has('v')) SFX.line();
+        effects.forEach(e => flash(e.sp, e.k));
+      } else SFX.match(chain);
+      if (pendingNote) { toast(`${pendingNote}<br><small>+${gain}kg</small>`); pendingNote = null; }
+      else if (spawns.length) toast(`<em>${SP_NAMES[spawns[0].sp]}</em><br><small>完成！</small>`);
+      else {
+        const cheer = CHEERS[Math.min(chain, CHEERS.length - 1)];
+        toast(chain >= 2 ? `${chain}連鎖 <em>+${gain}kg</em><br><small>${cheer}</small>` : `<em>+${gain}kg</em>`);
+      }
+
+      spawns.forEach(s => setSpecial(tileAt(s.k), s.sp));
+      if (spawns.length) SFX.spawn();
+      damage(hits);
+      let unlocked = false;
+
+      for (const k of clear) {
+        const tile = tileAt(k);
+        if (!tile) continue;
+        if (isLockedK(k)) { unlock(k); unlocked = true; continue; }
+        tile.el.classList.add('pop');
+        setTimeout(() => tile.el.remove(), D.pop + 10);
+        grid[Math.floor(k / N)][k % N] = null;
+      }
+      if (unlocked) SFX.unlock();
+      await sleep(effects.length ? D.pop + 120 : D.pop);
+      drop();
+      await sleep(D.fall);
+      SFX.land();
+      await sleep(40);
+    }
+    if (reward) {
+      const sp = chain >= 7 ? 'color' : chain >= 5 ? 'bomb' : chain >= 3 ? (Math.random() < 0.5 ? 'h' : 'v') : null;
+      if (sp) {
+        const pool = grid.flat().filter(t => t && t.t >= 0);
+        if (pool.length) {
+          const tile = pool[Math.floor(Math.random() * pool.length)];
+          await sleep(150);
+          setSpecial(tile, sp);
+          SFX.spawn();
+          toast(`${chain}連鎖ボーナス！<br><small><em>${SP_NAMES[sp]}</em> ゲット</small>`);
+          await sleep(500);
+        }
+      }
+    }
+    if (!anySpecial() && !findMove(typesOf())) await shuffle();
+  }
+
+  // 落下：穴と障害物はとばして、下から詰める（障害物の裏をすり抜けて落ちる）
+  function drop() {
+    const fresh = [];
+    for (let c = 0; c < N; c++) {
+      const slots = [];
+      for (let r = 0; r < N; r++) if (isSlot(r, c) && !isLocked(r, c)) slots.push(r);
+      const tiles = [];
+      for (let i = slots.length - 1; i >= 0; i--) {
+        const t = grid[slots[i]][c];
+        if (t) tiles.push(t);
+        grid[slots[i]][c] = null;
+      }
+      let i = slots.length - 1;
+      for (const t of tiles) { grid[slots[i]][c] = t; i--; }
+      const m = i + 1;
+      for (let j = 0; j < m; j++) {
+        const tile = makeTile(rand());
+        tile.el.style.transition = 'none';
+        place(tile, j - m, c);
+        grid[slots[j]][c] = tile;
+        fresh.push(tile);
+      }
+    }
+    board.offsetWidth;
+    fresh.forEach(t => (t.el.style.transition = ''));
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (grid[r][c]) place(grid[r][c], r, c);
+  }
+
+  async function shuffle() {
+    toast('<em>シャッフル</em>');
+    await sleep(400);
+    const types = safeTypes();
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      const t = grid[r][c];
+      if (t && !t.sp && !isLocked(r, c) && types[r][c] >= 0) setType(t, types[r][c]);
+    }
+    if (hasMatch(typesOf())) await resolve(new Set(), [], false);
+  }
+
+  function scheduleHint() {
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => {
+      if (busy) return;
+      const mv = findMove(typesOf()) || anySpecial();
+      if (!mv) return;
+      hinted = mv.map(([r, c]) => grid[r][c]).filter(Boolean);
+      hinted.forEach(t => t.el.classList.add('hint'));
+    }, 6000);
+  }
+  function clearHint() {
+    clearTimeout(hintTimer);
+    hinted.forEach(t => t.el.classList.remove('hint'));
+    hinted = [];
+  }
+  function clearSel() {
+    if (selected) grid[selected[0]]?.[selected[1]]?.el.classList.remove('sel');
+    selected = null;
+  }
+
+  // ---------- 入力 ----------
+  let start = null;
+  function cellAt(e) {
+    const rect = board.getBoundingClientRect();
+    const s = rect.width / N;
+    const c = Math.floor((e.clientX - rect.left) / s);
+    const r = Math.floor((e.clientY - rect.top) / s);
+    if (!inB(r, c)) return null;
+    return { r, c, s };
+  }
+  board.addEventListener('pointerdown', e => {
+    if (busy) return;
+    const cell = cellAt(e);
+    if (!cell || !grid[cell.r][cell.c]) return;
+    start = { ...cell, x: e.clientX, y: e.clientY, moved: false };
+    board.setPointerCapture(e.pointerId);
+  });
+  board.addEventListener('pointermove', e => {
+    if (!start || start.moved) return;
+    const dx = e.clientX - start.x, dy = e.clientY - start.y;
+    const th = start.s * 0.35;
+    if (Math.abs(dx) < th && Math.abs(dy) < th) return;
+    start.moved = true;
+    const [dr, dc] = Math.abs(dx) > Math.abs(dy) ? [0, Math.sign(dx)] : [Math.sign(dy), 0];
+    trySwap(start.r, start.c, start.r + dr, start.c + dc);
+  });
+  board.addEventListener('pointerup', () => {
+    if (!start) return;
+    const { r, c, moved } = start;
+    start = null;
+    if (moved || busy || !grid[r][c]) return;
+    if (isLocked(r, c)) { clearSel(); SFX.invalid(); return; }
+    if (selected) {
+      const [sr, sc] = selected;
+      if (Math.abs(sr - r) + Math.abs(sc - c) === 1) { trySwap(sr, sc, r, c); return; }
+      clearSel();
+      if (sr === r && sc === c) return;
+    }
+    if (grid[r][c].sp) { tapSpecial(r, c); return; }
+    selected = [r, c];
+    grid[r][c].el.classList.add('sel');
+    SFX.select();
+  });
+  board.addEventListener('pointercancel', () => { start = null; });
+
+  $('retry').addEventListener('click', () => startStage(stageIdx));
+  $('toMenu').addEventListener('click', showMenu);
+  $('help').addEventListener('click', () => { if (!$('overlay')) showGuide(); });
+  showMenu();
+})();
+</script>
+</html>
