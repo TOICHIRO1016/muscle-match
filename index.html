@@ -578,13 +578,91 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     start()   { tone(440, 0.12, { type: 'triangle', vol: 0.18 }); tone(660, 0.18, { type: 'triangle', vol: 0.18, delay: 0.1 }); }
   };
 
+  // ---------- ボス戦BGM（Web Audioでその場で演奏するオリジナル曲） ----------
+  const BGM = (() => {
+    let timer = null, step = 0, next = 0, gain = null, fast = false;
+    const spb = () => 60 / (fast ? 172 : 150) / 4;
+    const m2f = m => 440 * Math.pow(2, (m - 69) / 12);
+    const _ = null;
+    const ROOTS = [45, 41, 43, 40]; // Am - F - G - E
+    const MEL = [
+      [69, _, 72, _, 76, _, 81, _, 79, 76, _, 72, 74, _, 76, _],
+      [77, _, 76, _, 72, _, 69, _, 72, _, 74, _, 76, _, 77, _],
+      [79, _, 77, _, 74, _, 71, _, 74, _, 79, _, 77, 76, 74, _],
+      [76, _, _, _, 80, _, _, _, 83, _, 81, _, 80, _, 76, _]
+    ];
+    function osc(f, t, dur, type, vol) {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = type; o.frequency.setValueAtTime(f, t);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(vol, t + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(gain);
+      o.start(t); o.stop(t + dur + 0.02);
+    }
+    function hit(t, dur, vol, freq, type = 'bandpass') {
+      const len = Math.floor(ac.sampleRate * dur);
+      const buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      const s = ac.createBufferSource(); s.buffer = buf;
+      const f = ac.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+      const g = ac.createGain();
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      s.connect(f); f.connect(g); g.connect(gain); s.start(t);
+    }
+    function kick(t) {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+      g.gain.setValueAtTime(0.7, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+      o.connect(g); g.connect(gain); o.start(t); o.stop(t + 0.18);
+    }
+    function schedule(s, t) {
+      const bar = Math.floor(s / 16), i = s % 16, len = spb();
+      if (i % 2 === 0) osc(m2f(ROOTS[bar] + (i % 4 === 2 ? 12 : 0)), t, len * 1.8, 'triangle', 0.32);
+      const m = MEL[bar][i];
+      if (m) { osc(m2f(m), t, len * 1.7, 'square', 0.055); osc(m2f(m + 12), t, len * 1.2, 'sine', 0.03); }
+      if (i % 4 === 0) kick(t);
+      if (i === 4 || i === 12) hit(t, 0.12, 0.28, 1800);
+      if (i % 2 === 1) hit(t, 0.03, 0.1, 8000, 'highpass');
+      if (fast && i % 4 === 2) hit(t, 0.03, 0.08, 9000, 'highpass');
+    }
+    function tick() {
+      while (next < ac.currentTime + 0.12) { schedule(step, next); next += spb(); step = (step + 1) % 64; }
+    }
+    return {
+      get fast() { return fast; },
+      start() {
+        if (!ac || !soundOn || timer) return;
+        gain = ac.createGain(); gain.gain.value = 0.5; gain.connect(master);
+        step = 0; next = ac.currentTime + 0.06;
+        tick(); timer = setInterval(tick, 25);
+      },
+      stop() {
+        if (timer) { clearInterval(timer); timer = null; }
+        fast = false;
+        if (gain) {
+          const g = gain; gain = null;
+          g.gain.setTargetAtTime(0, ac.currentTime, 0.08);
+          setTimeout(() => g.disconnect(), 500);
+        }
+      },
+      setFast(v) { fast = v; }
+    };
+  })();
+  const bossActive = () => !!(stage && stage.bossHp && bossObj && !$('gameView').hidden && !$('overlay'));
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) BGM.stop();
+    else if (bossActive()) BGM.start();
+  });
+
   const soundBtn = $('sound');
   function renderSound() { soundBtn.textContent = soundOn ? '音 ON' : '音 OFF'; soundBtn.setAttribute('aria-pressed', String(soundOn)); }
   soundBtn.addEventListener('click', () => {
     soundOn = !soundOn;
     try { localStorage.setItem('mm-sound', soundOn ? 'on' : 'off'); } catch (e) {}
     renderSound();
-    if (soundOn) { unlockAudio(); SFX.select(); }
+    if (soundOn) { unlockAudio(); SFX.select(); if (bossActive()) BGM.start(); }
+    else BGM.stop();
   });
   renderSound();
 
@@ -812,6 +890,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   // ---------- メニュー（トレーニング記録） ----------
   function showMenu() {
     busy = true;
+    BGM.stop();
     clearHint(); clearSel(); hideOverlay();
     $('gameView').hidden = true;
     $('menuView').hidden = false;
@@ -850,6 +929,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   function startStage(i) {
     stageIdx = i;
     stage = getStage(i);
+    BGM.stop();
     hideOverlay();
     $('menuView').hidden = true;
     $('gameView').hidden = false;
@@ -880,7 +960,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
        ${stars ? `<div class="stars" style="transform:scale(.6)">${[0, 1, 2].map(k => STAR.replace('<svg', `<svg class="${k < stars ? 'on' : ''}"`)).join('')}</div>` : ''}`,
       [
         { label: 'メニュー', sub: true, fn: showMenu },
-        { label: 'スタート', fn: () => { hideOverlay(); busy = false; SFX.start(); scheduleHint(); } }
+        { label: 'スタート', fn: () => { hideOverlay(); busy = false; SFX.start(); scheduleHint(); if (stage.bossHp) setTimeout(() => BGM.start(), 300); } }
       ]
     );
     if (!seenGuide) showGuide(showStart); else showStart();
@@ -977,6 +1057,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
   async function stageClear() {
     busy = true;
+    BGM.stop();
     clearHint();
     const left = moves;
     const bonus = left * 50;
@@ -1003,6 +1084,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
   async function stageFail() {
     busy = true;
+    BGM.stop();
     clearHint();
     SFX.fail();
     await sleep(400);
@@ -1103,6 +1185,10 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
         goals.boss = Math.max(0, o.hp);
         updateGoal('boss');
         o.bar.style.width = Math.max(0, o.hp / o.max * 100) + '%';
+        if (o.hp > 0 && o.hp <= o.max * 0.3 && !BGM.fast) {
+          BGM.setFast(true);
+          setTimeout(() => toast('<em>ラストスパート！</em>'), 500);
+        }
         if (o.hp <= 0) {
           o.el.classList.add('gone');
           setTimeout(() => o.el.remove(), 420);
