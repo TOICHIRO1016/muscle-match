@@ -90,6 +90,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .menu-top h2 { font-family: var(--display); font-weight: 400; font-size: 1.35rem; margin: 0; }
 .menu-top p { margin: 2px 0 0; font-size: .8rem; color: var(--chalk-dim); }
 .total { text-align: right; }
+.total .kg { font-family: var(--display); font-size: .95rem; font-variant-numeric: tabular-nums; }
 .total .num { font-family: var(--display); font-size: 1.4rem; color: var(--accent); font-variant-numeric: tabular-nums; }
 .weeks { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding-bottom: 8px; }
 .week-h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
@@ -117,6 +118,18 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .dayb.next { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 14px rgba(240, 180, 41, .25); }
 .dayb.locked { opacity: .32; cursor: default; }
 .legend { font-size: .75rem; color: var(--chalk-dim); line-height: 1.6; margin: 0; }
+.boost { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; }
+.bst {
+  display: flex; align-items: center; gap: 7px; min-width: 0;
+  padding: 6px 7px; border-radius: 10px; cursor: pointer; text-align: left;
+  background: var(--mat); border: 1px solid var(--mat-line); color: var(--chalk);
+  font: 700 .72rem/1.25 var(--body);
+}
+.bst small { display: block; color: var(--chalk-dim); font-weight: 500; font-size: .64rem; }
+.bst.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: var(--steel-d); }
+.bst:disabled { opacity: .35; cursor: default; }
+.wallet-line { font-size: .8rem !important; }
+.wallet-line b { color: var(--accent); font-variant-numeric: tabular-nums; }
 .menu-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .xfer { width: 100%; display: flex; flex-direction: column; gap: 8px; text-align: left; }
 .xfer h3 { margin: 6px 0 0; font-size: .8rem; letter-spacing: .1em; color: var(--chalk-dim); }
@@ -357,12 +370,12 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
         <h2>トレーニング記録</h2>
         <p>1日1種目。7日目はコーチとのボス戦</p>
       </div>
-      <div class="total"><div class="label">獲得スター</div><div class="num" id="totalStars">0</div></div>
+      <div class="total"><div class="label">獲得スター</div><div class="num" id="totalStars">0</div><div class="label" style="margin-top:4px">貯めた重量</div><div class="kg" id="wallet">0 kg</div></div>
     </div>
     <div class="weeks" id="weeks"></div>
     <div class="menu-foot">
       <button class="pill" id="transfer" type="button">データ引き継ぎ</button>
-      <p class="legend">バージョン 1.8</p>
+      <p class="legend">バージョン 1.9</p>
     </div>
   </section>
 
@@ -411,7 +424,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   OBS_ICONS.locker = '<svg viewBox="0 0 40 40"><rect x="2.5" y="2.5" width="35" height="35" rx="6" fill="none" stroke="#b9c2c8" stroke-width="3"/><path d="M2.5 11h35M2.5 29h35" stroke="#b9c2c8" stroke-width="2.6"/><path d="M8 6.5h10M8 33h10" stroke="#b9c2c8" stroke-width="1.6" stroke-linecap="round"/><rect x="14.5" y="18" width="11" height="9" rx="1.6" fill="#f0b429"/><path d="M16.8 18v-2.6a3.2 3.2 0 0 1 6.4 0V18" stroke="#f0b429" stroke-width="2.2" fill="none"/><circle cx="20" cy="22.5" r="1.4" fill="#2c3237"/></svg>';
   OBS_ICONS.boss = '<svg viewBox="0 0 80 80"><rect x="1" y="1" width="78" height="78" rx="12" fill="#3b2b2b"/><rect x="1" y="1" width="78" height="78" rx="12" fill="none" stroke="#d9473f" stroke-width="2.5"/><path d="M8 79c2-15 14-22 32-22s30 7 32 22z" fill="#d9473f"/><path d="M27 57v22M53 57v22" stroke="#3b2b2b" stroke-width="3"/><rect x="34" y="50" width="12" height="9" fill="#d9a070"/><circle cx="40" cy="33" r="18" fill="#e3b080"/><rect x="21" y="21" width="38" height="7" rx="2" fill="#f0b429"/><path d="M28.5 31.5l8 2.5M51.5 31.5l-8 2.5" stroke="#2c1d14" stroke-width="2.8" stroke-linecap="round"/><circle cx="33.5" cy="37.5" r="2" fill="#2c1d14"/><circle cx="46.5" cy="37.5" r="2" fill="#2c1d14"/><path d="M34 45.5q6 -3 12 0" stroke="#2c1d14" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M31 57l9 8 9-8" stroke="#f1efe8" stroke-width="1.6" fill="none"/><rect x="36" y="63" width="9" height="5" rx="2" fill="#c5ccd1"/></svg>';
   const OBS_INFO = { box: { hp: 1, name: 'プロテインの箱' }, tire: { hp: 2, name: 'タイヤ' }, sweat: { hp: 1, name: '汗' } };
-  SP_ICONS.db = '<svg viewBox="0 0 40 40"><g transform="rotate(-35 23 19)"><rect x="12" y="17" width="22" height="4.4" rx="1.2"/><rect x="8" y="9.5" width="6" height="19.5" rx="1.8"/><rect x="32" y="9.5" width="6" height="19.5" rx="1.8"/></g><path d="M3 27.5h8M5.5 33h9M2 22h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg>';
+  SP_ICONS.db = ICONS[0];
   const SP_NAMES = { h: 'バーベル', v: 'バーベル', bomb: 'メディシンボール', color: 'ゴールデンプロテイン', db: 'ダンベル' };
   const STAR = '<svg viewBox="0 0 24 24"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg>';
 
@@ -520,6 +533,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   try {
     const p = JSON.parse(localStorage.getItem('mm-progress') || 'null');
     if (p && typeof p.unlocked === 'number') progress = p;
+    // 初回：これまでの進み具合に応じて重量をプレゼント
+    if (typeof progress.kg !== 'number') progress.kg = progress.unlocked * 300;
     soundOn = localStorage.getItem('mm-sound') !== 'off';
     seenGuide = localStorage.getItem('mm-guide3') === '1';
   } catch (e) {}
@@ -911,7 +926,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   const goalsHtml = g => Object.keys(g).map(k => `<span class="goal">${miniHtml(k)}${g[k]}</span>`).join('');
 
   // ---------- オーバーレイ ----------
-  function overlayHost() { return $('gameView').hidden ? $('menuView') : wrap; }
+  function overlayHost() { return $('gameView').hidden ? $('menuView') : $('gameView'); }
   function showOverlay(html, actions) {
     hideOverlay();
     const ov = document.createElement('div');
@@ -988,6 +1003,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     }
     $('weeks').innerHTML = html;
     $('totalStars').textContent = total;
+    $('wallet').textContent = (progress.kg || 0).toLocaleString() + ' kg';
     const next = $('weeks').querySelector('.dayb.next');
     if (next) next.scrollIntoView({ block: 'center' });
   }
@@ -995,7 +1011,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   // 形式: MM1-<base64(JSON)>-<チェック用の数字>
   function checksum(str) { let h = 7; for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 999983; return h; }
   function exportCode() {
-    const b64 = btoa(JSON.stringify({ unlocked: progress.unlocked, stars: progress.stars }));
+    const b64 = btoa(JSON.stringify({ unlocked: progress.unlocked, stars: progress.stars, kg: progress.kg || 0 }));
     return `MM1-${b64}-${checksum(b64)}`;
   }
   function parseCode(code) {
@@ -1010,7 +1026,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       if (!/^\d+$/.test(k) || ![1, 2, 3].includes(v)) return null;
       stars[k] = v;
     }
-    return { unlocked: d.unlocked, stars };
+    const kg = Number.isInteger(d.kg) && d.kg >= 0 && d.kg < 1e10 ? d.kg : 0;
+    return { unlocked: d.unlocked, stars, kg };
   }
   const sumStars = st => Object.values(st).reduce((a, b) => a + b, 0);
   function showTransfer() {
@@ -1019,7 +1036,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       <div class="big" style="font-size:1.25rem">データ引き継ぎ</div>
       <div class="xfer">
         <h3>このスマホのデータを書き出す</h3>
-        <p class="msg">DAY ${progress.unlocked + 1} まで・スター ${sumStars(progress.stars)} 個</p>
+        <p class="msg">DAY ${progress.unlocked + 1} まで・スター ${sumStars(progress.stars)} 個・${(progress.kg || 0).toLocaleString()} kg</p>
         <textarea id="xOut" readonly>${code}</textarea>
         <button class="btn" id="xCopy" type="button">コードをコピー</button>
         <p class="msg" id="xCopyMsg"></p>
@@ -1042,14 +1059,14 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       const d = parseCode($('xIn').value);
       if (!d) { msg.textContent = 'コードが正しくありません。最初の「MM1-」から最後まで、全部コピーできているか確認してください'; msg.className = 'msg ng'; return; }
       try { localStorage.setItem('mm-progress-backup-' + Date.now(), JSON.stringify(progress)); } catch (e) {}
-      const merged = { unlocked: Math.max(progress.unlocked, d.unlocked), stars: { ...progress.stars } };
+      const merged = { unlocked: Math.max(progress.unlocked, d.unlocked), stars: { ...progress.stars }, kg: Math.max(progress.kg || 0, d.kg) };
       for (const [k, v] of Object.entries(d.stars)) merged.stars[k] = Math.max(merged.stars[k] || 0, v);
       progress = merged;
       save();
       let saved = null;
       try { saved = JSON.parse(localStorage.getItem('mm-progress')); } catch (e) {}
       if (!saved || saved.unlocked !== merged.unlocked) { msg.textContent = '保存に失敗しました。もう一度試してください（今のデータはそのままです）'; msg.className = 'msg ng'; return; }
-      msg.textContent = `読み込みました！ DAY ${progress.unlocked + 1} まで・スター ${sumStars(progress.stars)} 個`;
+      msg.textContent = `読み込みました！ DAY ${progress.unlocked + 1} まで・スター ${sumStars(progress.stars)} 個・${progress.kg.toLocaleString()} kg`;
       msg.className = 'msg ok';
       SFX.clear();
     });
@@ -1091,18 +1108,77 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     sweatCleared = false;
     renderHud(); renderGoals();
     const stars = progress.stars[i] || 0;
-    const showStart = () => showOverlay(
+    const sel = new Set();
+    const boostHtml = () => `
+       <div class="label">ブースト（貯めた重量で使える）</div>
+       <div class="boost">${BOOSTS.map(b => `<button type="button" class="bst" data-b="${b.id}"><span class="mini" ${b.sp ? `data-sp="${b.sp}"` : 'data-t="3"'}>${b.sp ? SP_ICONS[b.sp] : ICONS[3]}</span><span>${b.name}<small>${b.desc}・${b.price.toLocaleString()}kg</small></span></button>`).join('')}</div>
+       <p class="wallet-line" id="walletLine"></p>`;
+    const refreshBoost = () => {
+      const cost = [...sel].reduce((a, id) => a + BOOSTS.find(b => b.id === id).price, 0);
+      const left = (progress.kg || 0) - cost;
+      document.querySelectorAll('.bst').forEach(btn => {
+        const b = BOOSTS.find(x => x.id === btn.dataset.b);
+        const on = sel.has(b.id);
+        btn.classList.toggle('on', on);
+        btn.disabled = !on && b.price > left;
+        btn.setAttribute('aria-pressed', String(on));
+      });
+      const wl = $('walletLine');
+      if (wl) wl.innerHTML = `所持 <b>${(progress.kg || 0).toLocaleString()} kg</b>${cost ? ` → 使ったあと <b>${left.toLocaleString()} kg</b>` : ''}`;
+    };
+    const startPlay = () => {
+      const cost = [...sel].reduce((a, id) => a + BOOSTS.find(b => b.id === id).price, 0);
+      if (cost > (progress.kg || 0)) sel.clear();
+      hideOverlay(); SFX.start();
+      if (sel.size) {
+        progress.kg -= cost; save();
+        applyBoosts([...sel]);
+      }
+      busy = false; scheduleHint();
+      setTimeout(() => BGM.start(songName()), 300);
+    };
+    const showStart = () => { showOverlay(
       `<div class="label">DAY ${i + 1}・${partLabel(stage)}</div>
        <div class="big">${stage.name}</div>
        <p>${stage.moves}手以内に${stage.bossHp ? 'コーチを倒そう' : 'クリアしよう'}</p>
        <div class="goals" style="justify-content:center">${goalsHtml(goals)}</div>
-       ${stars ? `<div class="stars" style="transform:scale(.6)">${[0, 1, 2].map(k => STAR.replace('<svg', `<svg class="${k < stars ? 'on' : ''}"`)).join('')}</div>` : ''}`,
+       ${stars ? `<div class="stars" style="transform:scale(.6)">${[0, 1, 2].map(k => STAR.replace('<svg', `<svg class="${k < stars ? 'on' : ''}"`)).join('')}</div>` : ''}
+       ${boostHtml()}`,
       [
         { label: 'メニュー', sub: true, fn: showMenu },
-        { label: 'スタート', fn: () => { hideOverlay(); busy = false; SFX.start(); scheduleHint(); setTimeout(() => BGM.start(songName()), 300); } }
+        { label: 'スタート', fn: startPlay }
       ]
     );
+      document.querySelectorAll('.bst').forEach(btn => btn.addEventListener('click', () => {
+        const id = btn.dataset.b;
+        if (sel.has(id)) sel.delete(id); else sel.add(id);
+        SFX.select(); refreshBoost();
+      }));
+      refreshBoost();
+    };
     if (!seenGuide) showGuide(showStart); else showStart();
+  }
+
+  const BOOSTS = [
+    { id: 'moves', name: 'プロテインバー', desc: '手数+5', price: 2000 },
+    { id: 'h', sp: 'h', name: 'バーベル', desc: '最初から置く', price: 1500 },
+    { id: 'bomb', sp: 'bomb', name: 'メディシンボール', desc: '最初から置く', price: 2500 },
+    { id: 'color', sp: 'color', name: 'ゴールデンプロテイン', desc: '最初から置く', price: 4000 }
+  ];
+  function applyBoosts(ids) {
+    const pool = [];
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      const t = grid[r][c];
+      if (t && t.t >= 0 && !isLocked(r, c)) pool.push(t);
+    }
+    for (const id of ids) {
+      if (id === 'moves') { moves += 5; renderHud(); continue; }
+      if (!pool.length) continue;
+      const t = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+      setSpecial(t, id === 'h' ? (Math.random() < 0.5 ? 'h' : 'v') : id);
+    }
+    SFX.spawn();
+    toast('<em>ブースト！</em>');
   }
 
   function buildBoard() {
@@ -1205,6 +1281,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     const stars = ratio >= 0.4 ? 3 : ratio >= 0.2 ? 2 : 1;
     progress.stars[stageIdx] = Math.max(progress.stars[stageIdx] || 0, stars);
     progress.unlocked = Math.max(progress.unlocked, stageIdx + 1);
+    progress.kg = (progress.kg || 0) + score;
     save();
     SFX.clear();
     toast('<em>クリア！</em>');
@@ -1212,7 +1289,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     showOverlay(
       `<div class="big good">トレーニング完了！</div>
        <div class="stars">${[0, 1, 2].map(k => STAR.replace('<svg', `<svg class="${k < stars ? 'on' : ''}" style="animation-delay:${k * 0.25}s"`)).join('')}</div>
-       <p>${stage.name}　総挙上量 <b style="color:var(--chalk)">${score.toLocaleString()} kg</b><br>残り${left}手ボーナス +${bonus.toLocaleString()} kg</p>`,
+       <p>${stage.name}　総挙上量 <b style="color:var(--chalk)">${score.toLocaleString()} kg</b><br>残り${left}手ボーナス +${bonus.toLocaleString()} kg</p>
+       <p>貯めた重量 <b style="color:var(--accent)">${progress.kg.toLocaleString()} kg</b>（+${score.toLocaleString()}）</p>`,
       [
         { label: 'メニュー', sub: true, fn: showMenu },
         { label: '次の日へ', fn: () => startStage(stageIdx + 1) }
@@ -1226,13 +1304,17 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     BGM.stop();
     clearHint();
     SFX.fail();
+    const earned = Math.floor(score / 2);
+    progress.kg = (progress.kg || 0) + earned;
+    save();
     await sleep(400);
     const rest = {};
     for (const t in goals) if (goals[t] > 0) rest[t] = goals[t];
     showOverlay(
       `<div class="big">手数切れ…</div>
        <p>あと少し！残りの目標</p>
-       <div class="goals" style="justify-content:center">${goalsHtml(rest)}</div>`,
+       <div class="goals" style="justify-content:center">${goalsHtml(rest)}</div>
+       <p>挙げた重量の半分 +${earned.toLocaleString()} kg を貯めました</p>`,
       [
         { label: 'メニュー', sub: true, fn: showMenu },
         { label: 'もう一度', fn: () => startStage(stageIdx) }
