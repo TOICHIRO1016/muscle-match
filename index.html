@@ -342,12 +342,12 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 <div class="app">
   <header>
-    <h1>マッスル<span>マッチ</span></h1>
+    <button class="pill" id="toMenu" type="button" hidden>‹ メニュー</button>
+    <h1 id="title">マッスル<span>マッチ</span></h1>
     <div class="tools">
       <button class="pill" id="sound" type="button" aria-pressed="true">音 ON</button>
-      <button class="pill" id="help" type="button" aria-label="遊び方">？</button>
-      <button class="pill" id="retry" type="button" aria-label="やり直し" hidden>↻</button>
-      <button class="pill" id="toMenu" type="button" hidden>メニュー</button>
+      <button class="pill" id="help" type="button">遊び方</button>
+      <button class="pill" id="retry" type="button" hidden>やり直し</button>
     </div>
   </header>
 
@@ -362,7 +362,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div class="weeks" id="weeks"></div>
     <div class="menu-foot">
       <button class="pill" id="transfer" type="button">データ引き継ぎ</button>
-      <p class="legend">バージョン 1.7</p>
+      <p class="legend">バージョン 1.8</p>
     </div>
   </section>
 
@@ -968,6 +968,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     $('menuView').hidden = false;
     $('retry').hidden = true;
     $('toMenu').hidden = true;
+    $('title').hidden = false;
     const unlocked = progress.unlocked;
     const weeks = Math.floor(unlocked / 7) + 2;
     let total = 0, html = '';
@@ -1072,6 +1073,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     $('gameView').hidden = false;
     $('retry').hidden = false;
     $('toMenu').hidden = false;
+    $('title').hidden = true;
     moves = stage.moves;
     score = 0;
     busy = true;
