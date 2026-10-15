@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#1c2023">
 <meta name="apple-mobile-web-app-title" content="マッスルマッチ">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=2">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box;height:100%}body{margin:0;font-size:14px}</style>
@@ -248,6 +248,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .fx.line { background: linear-gradient(90deg, transparent, var(--gold), var(--chalk), var(--gold), transparent); }
 .fx.line.v { background: linear-gradient(180deg, transparent, var(--gold), var(--chalk), var(--gold), transparent); }
 .fx.boom { border-radius: 50%; background: radial-gradient(circle, var(--chalk) 0%, var(--gold) 35%, rgba(240, 180, 41, 0) 70%); }
+.fly { position: absolute; left: 0; top: 0; width: 12.5%; height: 12.5%; z-index: 4; color: var(--accent); pointer-events: none; filter: drop-shadow(0 3px 4px rgba(0,0,0,.5)); }
+.fly svg { width: 100%; height: 100%; fill: currentColor; }
 .fx.all { inset: 0; background: radial-gradient(circle, rgba(255, 224, 138, .9), rgba(255, 224, 138, 0) 75%); }
 @keyframes fx { 0% { opacity: 0; transform: scale(.6); } 25% { opacity: 1; } 100% { opacity: 0; transform: scale(1.1); } }
 
@@ -346,7 +348,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       <div class="total"><div class="label">獲得スター</div><div class="num" id="totalStars">0</div></div>
     </div>
     <div class="weeks" id="weeks"></div>
-    <p class="legend" style="text-align:right">バージョン 1.4（ボス戦BGM・アイコン）</p>
+    <p class="legend" style="text-align:right">バージョン 1.5（正方形ダンベル・ボス調整）</p>
   </section>
 
   <section class="view" id="gameView" hidden>
@@ -365,7 +367,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div class="board-wrap" id="wrap">
       <div id="board" aria-label="ゲーム盤"></div>
     </div>
-    <p class="howto">4つ以上そろえると特殊アイテム。障害物はとなりで消すか、アイテムで壊そう</p>
+    <p class="howto">4つ以上・正方形でそろえると特殊アイテム。障害物はとなりで消すか、アイテムで壊そう</p>
   </section>
 </div>
 
@@ -394,7 +396,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   OBS_ICONS.locker = '<svg viewBox="0 0 40 40"><rect x="2.5" y="2.5" width="35" height="35" rx="6" fill="none" stroke="#b9c2c8" stroke-width="3"/><path d="M2.5 11h35M2.5 29h35" stroke="#b9c2c8" stroke-width="2.6"/><path d="M8 6.5h10M8 33h10" stroke="#b9c2c8" stroke-width="1.6" stroke-linecap="round"/><rect x="14.5" y="18" width="11" height="9" rx="1.6" fill="#f0b429"/><path d="M16.8 18v-2.6a3.2 3.2 0 0 1 6.4 0V18" stroke="#f0b429" stroke-width="2.2" fill="none"/><circle cx="20" cy="22.5" r="1.4" fill="#2c3237"/></svg>';
   OBS_ICONS.boss = '<svg viewBox="0 0 80 80"><rect x="1" y="1" width="78" height="78" rx="12" fill="#3b2b2b"/><rect x="1" y="1" width="78" height="78" rx="12" fill="none" stroke="#d9473f" stroke-width="2.5"/><path d="M8 79c2-15 14-22 32-22s30 7 32 22z" fill="#d9473f"/><path d="M27 57v22M53 57v22" stroke="#3b2b2b" stroke-width="3"/><rect x="34" y="50" width="12" height="9" fill="#d9a070"/><circle cx="40" cy="33" r="18" fill="#e3b080"/><rect x="21" y="21" width="38" height="7" rx="2" fill="#f0b429"/><path d="M28.5 31.5l8 2.5M51.5 31.5l-8 2.5" stroke="#2c1d14" stroke-width="2.8" stroke-linecap="round"/><circle cx="33.5" cy="37.5" r="2" fill="#2c1d14"/><circle cx="46.5" cy="37.5" r="2" fill="#2c1d14"/><path d="M34 45.5q6 -3 12 0" stroke="#2c1d14" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M31 57l9 8 9-8" stroke="#f1efe8" stroke-width="1.6" fill="none"/><rect x="36" y="63" width="9" height="5" rx="2" fill="#c5ccd1"/></svg>';
   const OBS_INFO = { box: { hp: 1, name: 'プロテインの箱' }, tire: { hp: 2, name: 'タイヤ' }, sweat: { hp: 1, name: '汗' } };
-  const SP_NAMES = { h: 'バーベル', v: 'バーベル', bomb: 'メディシンボール', color: 'ゴールデンプロテイン' };
+  SP_ICONS.db = '<svg viewBox="0 0 40 40"><g transform="rotate(-35 23 19)"><rect x="12" y="17" width="22" height="4.4" rx="1.2"/><rect x="8" y="9.5" width="6" height="19.5" rx="1.8"/><rect x="32" y="9.5" width="6" height="19.5" rx="1.8"/></g><path d="M3 27.5h8M5.5 33h9M2 22h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg>';
+  const SP_NAMES = { h: 'バーベル', v: 'バーベル', bomb: 'メディシンボール', color: 'ゴールデンプロテイン', db: 'ダンベル' };
   const STAR = '<svg viewBox="0 0 24 24"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg>';
 
   // ---------- ステージ ----------
@@ -428,7 +431,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     { part: 3, name: 'ショルダープレス', moves: 22, goals: { 0: 10 }, layout: ['...xx...', '...xx...', F, F, '..l..l..', '.l....l.', '...xx...', '...xx...'] },
     { part: 4, name: 'アームカール', moves: 22, goals: { 3: 12 }, layout: [F, F, '.t....t.', F, F, '.t....t.', F, F] },
     { part: 5, name: 'クランチ', moves: 24, goals: {}, layout: ['xx....xx', 'x......x', F, F, F, '...ss...', 'x.ssss.x', 'xx....xx'] },
-    { part: 6, name: 'ゴリ松コーチ', moves: 22, bossHp: 30, goals: {}, layout: [F, F, '...BB...', '...BB...', F, F, F, F] },
+    { part: 6, name: 'ゴリ松コーチ', moves: 25, bossHp: 20, goals: {}, layout: [F, F, '...BB...', '...BB...', F, F, F, F] },
     // WEEK 2
     { part: 0, name: 'インクラインベンチ', moves: 24, goals: { 0: 15 }, layout: ['xx....xx', 'x......x', F, '.bb..bb.', '.bb..bb.', F, 'x......x', 'xx....xx'] },
     { part: 1, name: 'デッドリフト', moves: 24, goals: { 2: 18, 4: 12 }, layout: SHAPES.cross },
@@ -436,7 +439,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     { part: 3, name: 'サイドレイズ', moves: 24, goals: { 3: 14 }, layout: ['xx....xx', 'xx.xx.xx', F, F, 'l..ll..l', F, 'x......x', 'xx....xx'] },
     { part: 4, name: 'ディップス', moves: 26, goals: { 0: 10 }, layout: [F, 'bb....bb', 'bb....bb', '...ss...', F, 'bb....bb', 'bb....bb', F] },
     { part: 5, name: 'プランク', moves: 26, goals: { 4: 12 }, layout: ['xx....xx', 'x..ll..x', '...tt...', '..t..t..', '..s..s..', F, 'x......x', 'xx....xx'] },
-    { part: 6, name: 'マッチョ山トレーナー', moves: 24, bossHp: 40, goals: {}, layout: ['xx....xx', 'x......x', F, '...BB...', '...BB...', '.l....l.', 'x......x', 'xx....xx'] }
+    { part: 6, name: 'マッチョ山トレーナー', moves: 26, bossHp: 28, goals: {}, layout: ['xx....xx', 'x......x', F, '...BB...', '...BB...', '.l....l.', 'x......x', 'xx....xx'] }
   ];
   function rng(seed) {
     let a = seed >>> 0;
@@ -464,8 +467,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       }
     };
     if (bossDay) {
-      place(Math.min(w, 6), 'l');
-      return { part: d, name, moves: 24, bossHp: Math.min(30 + w * 5, 70), goals: {}, layout: base.map(r => r.join('')) };
+      place(Math.min(Math.floor(w / 2), 3), 'l');
+      return { part: d, name, moves: 26 + Math.min(w, 4), bossHp: Math.min(22 + w * 3, 45), goals: {}, layout: base.map(r => r.join('')) };
     }
     place(Math.min(4 + w, 12), 'b');
     if (w >= 3) place(Math.min(w - 1, 6), 't');
@@ -573,6 +576,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       tone(n, 0.22, { type: 'triangle', vol: 0.22, delay: 0.02 });
     },
     spawn()   { tone(660, 0.28, { type: 'triangle', vol: 0.2, to: 1320 }); tone(1980, 0.3, { vol: 0.06, delay: 0.12 }); },
+    db()      { noise(0.32, { vol: 0.3, freq: 500, to: 3000 }); tone(120, 0.2, { vol: 0.35, to: 50, delay: 0.38 }); noise(0.12, { vol: 0.3, freq: 600, delay: 0.38 }); },
     line()    { noise(0.35, { vol: 0.35, freq: 600, to: 4000 }); tone(300, 0.3, { type: 'sawtooth', vol: 0.06, to: 1200 }); },
     bomb()    { tone(150, 0.55, { vol: 0.5, to: 40 }); noise(0.4, { vol: 0.45, freq: 350, to: 120 }); },
     color()   { [1047, 1319, 1568, 2093, 2637, 3136].forEach((f, i) => tone(f, 0.25, { vol: 0.12, delay: i * 0.05 })); noise(0.5, { vol: 0.12, freq: 5000 }); },
@@ -730,7 +734,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
           let t;
           do { t = rand(); } while (
             (c >= 2 && types[r][c - 1] === t && types[r][c - 2] === t) ||
-            (r >= 2 && types[r - 1][c] === t && types[r - 2][c] === t)
+            (r >= 2 && types[r - 1][c] === t && types[r - 2][c] === t) ||
+            (r >= 1 && c >= 1 && types[r - 1][c] === t && types[r][c - 1] === t && types[r - 1][c - 1] === t)
           );
           types[r].push(t);
         }
@@ -764,10 +769,22 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     }
     return runs;
   }
-  const hasMatch = types => findRuns(types).length > 0;
+  // 2×2の正方形
+  function findSquares(types) {
+    const out = [];
+    for (let r = 0; r < N - 1; r++) for (let c = 0; c < N - 1; c++) {
+      const t = types[r][c];
+      if (t === -1) continue;
+      if (types[r][c + 1] === t && types[r + 1][c] === t && types[r + 1][c + 1] === t) {
+        out.push({ dir: 'sq', cells: [r * N + c, r * N + c + 1, (r + 1) * N + c, (r + 1) * N + c + 1] });
+      }
+    }
+    return out;
+  }
+  const hasMatch = types => findRuns(types).length > 0 || findSquares(types).length > 0;
 
   function findGroups(types, focus) {
-    const runs = findRuns(types);
+    const runs = findRuns(types).concat(findSquares(types));
     const parent = runs.map((_, i) => i);
     const find = i => (parent[i] === i ? i : (parent[i] = find(parent[i])));
     const owner = new Map(), count = new Map();
@@ -785,12 +802,14 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     const cells = new Set(), spawns = [];
     for (const g of groups.values()) {
       g.cells.forEach(k => cells.add(k));
-      const longest = g.runs.reduce((a, b) => (b.cells.length > a.cells.length ? b : a));
+      const lines = g.runs.filter(r => r.dir !== 'sq');
+      const longest = (lines.length ? lines : g.runs).reduce((a, b) => (b.cells.length > a.cells.length ? b : a));
       const hasH = g.runs.some(r => r.dir === 'h'), hasV = g.runs.some(r => r.dir === 'v');
       let sp = null;
       if (longest.cells.length >= 5) sp = 'color';
       else if (hasH && hasV) sp = 'bomb';
-      else if (longest.cells.length === 4) sp = longest.dir;
+      else if (lines.length && longest.cells.length === 4) sp = longest.dir;
+      else if (g.runs.some(r => r.dir === 'sq')) sp = 'db';
       if (!sp) continue;
       let k = [...g.cells].find(x => focus.has(x));
       if (k === undefined && sp === 'bomb') k = [...g.cells].find(x => count.get(x) > 1);
@@ -880,6 +899,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div class="guide">
       <h3>特殊アイテム（タップ or 入れ替えで発動）</h3>
       <div class="row"><span class="mini" data-sp="h">${SP_ICONS.h}</span><div><b>バーベル</b><span class="how">4つ一直線でできる。向きに合わせて一列まとめて消す</span></div></div>
+      <div class="row"><span class="mini" data-sp="db">${SP_ICONS.db}</span><div><b>ダンベル</b><span class="how">2×2の正方形でそろえるとできる。周りを消してから、ボスや障害物めがけて飛んでいく</span></div></div>
       <div class="row"><span class="mini" data-sp="bomb">${SP_ICONS.bomb}</span><div><b>メディシンボール</b><span class="how">L字・T字でできる。周りの5×5マスを吹き飛ばす</span></div></div>
       <div class="row"><span class="mini" data-sp="color">${SP_ICONS.color}</span><div><b>ゴールデンプロテイン</b><span class="how">5つ一直線でできる。入れ替えた相手と同じアイテムを全部消す</span></div></div>
       <h3>連鎖ボーナス</h3>
@@ -890,7 +910,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       <div class="row">${miniHtml('locker')}<div><b>ロッカー</b><span class="how">中のアイテムは動かせない。そのマスを含めてそろえると扉が開く</span></div></div>
       <div class="row">${miniHtml('sweat')}<div><b>汗</b><span class="how">1手のあいだに1つも拭かないと、となりのマスに広がる</span></div></div>
       <h3>ボス戦（毎週7日目）</h3>
-      <div class="row">${miniHtml('boss')}<div><b>コーチ</b><span class="how">となりで消すか、アイテムを当ててHPを0に。4手ごとに「喝！」でアイテムをロッカーに閉じこめてくる</span></div></div>
+      <div class="row">${miniHtml('boss')}<div><b>コーチ</b><span class="how">となりで消すか、アイテムを当ててHPを0に。5手ごとに「喝！」でアイテム1つをロッカーに閉じこめてくる。特殊アイテムを当てると2ダメージ</span></div></div>
     </div>
     <p>特殊アイテム同士を入れ替えると合体技！</p>`;
 
@@ -1126,9 +1146,30 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     wrap.appendChild(el);
     setTimeout(() => el.remove(), 950);
   }
-  function flash(sp, k) {
+  function flash(sp, k, to) {
     const r = Math.floor(k / N), c = k % N, u = 12.5;
     const el = document.createElement('div');
+    if (sp === 'db') {
+      el.className = 'fx boom';
+      Object.assign(el.style, { left: (c - 1) * u + '%', top: (r - 1) * u + '%', width: 3 * u + '%', height: 3 * u + '%' });
+      if (to != null) {
+        const r2 = Math.floor(to / N), c2 = to % N;
+        const fly = document.createElement('div');
+        fly.className = 'fly';
+        fly.innerHTML = SP_ICONS.db;
+        board.appendChild(fly);
+        const a = fly.animate([
+          { transform: `translate(${c * 100}%, ${r * 100}%) rotate(0deg) scale(1)` },
+          { transform: `translate(${(c + c2) * 50}%, ${(r + r2) * 50 - 120}%) rotate(360deg) scale(1.5)`, offset: 0.5 },
+          { transform: `translate(${c2 * 100}%, ${r2 * 100}%) rotate(720deg) scale(1)` }
+        ], { duration: 420, easing: 'ease-in' });
+        a.onfinish = () => { fly.remove(); flash('hit', to); };
+      }
+      board.appendChild(el);
+      setTimeout(() => el.remove(), 450);
+      return;
+    }
+    if (sp === 'hit') { el.className = 'fx boom'; Object.assign(el.style, { left: (c - 0.5) * u + '%', top: (r - 0.5) * u + '%', width: 2 * u + '%', height: 2 * u + '%' }); board.appendChild(el); setTimeout(() => el.remove(), 450); return; }
     if (sp === 'h') { el.className = 'fx line'; Object.assign(el.style, { left: 0, width: '100%', top: r * u + '%', height: u + '%' }); }
     else if (sp === 'v') { el.className = 'fx line v'; Object.assign(el.style, { top: 0, height: '100%', left: c * u + '%', width: u + '%' }); }
     else if (sp === 'bomb') { el.className = 'fx boom'; Object.assign(el.style, { left: (c - 2) * u + '%', top: (r - 2) * u + '%', width: 5 * u + '%', height: 5 * u + '%' }); }
@@ -1156,11 +1197,29 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (grid[y][x]?.t === tt) out.push(y * N + x);
     } else if (sp === 'all') {
       for (let i = 0; i < N * N; i++) out.push(i);
+    } else if (sp === 'db') {
+      for (const [dr, dc] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) if (inB(r + dr, c + dc)) out.push((r + dr) * N + c + dc);
+      const to = pickTarget(new Set(out));
+      if (to !== null) { out.push(to); effectCells.to = to; }
     }
     return out;
   }
+  // ダンベルの飛び先：ボス → 目標の障害物 → ロッカー → 目標アイテム → どこか
+  function pickTarget(skip) {
+    const pick = arr => { const a = arr.filter(k => !skip.has(k)); return a.length ? a[Math.floor(Math.random() * a.length)] : null; };
+    const all = [...Array(N * N).keys()];
+    const tries = [
+      bossObj ? bossObj.cells.map(([r, c]) => r * N + c) : [],
+      all.filter(k => { const o = obsAt(k); return o && o.kind !== 'boss' && goals[o.kind] > 0; }),
+      all.filter(k => isLockedK(k)),
+      all.filter(k => { const t = tileAt(k); return t && t.t >= 0 && goals[t.t] > 0; }),
+      all.filter(k => tileAt(k))
+    ];
+    for (const arr of tries) { const k = pick(arr); if (k !== null) return k; }
+    return null;
+  }
   function computeClear(matchCells, acts, spawnKeys) {
-    const clear = new Set(matchCells), hits = new Set(), fired = new Set(), effects = [];
+    const clear = new Set(matchCells), hits = new Set(), strong = new Set(), fired = new Set(), effects = [];
     // そろえたマスのとなりにある障害物にダメージ
     for (const k of matchCells) {
       const r = Math.floor(k / N), c = k % N;
@@ -1177,10 +1236,12 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       if (!sp) continue;
       fired.add(a.k);
       if (tile) clear.add(a.k);
-      effects.push({ sp, k: a.k });
-      for (const k of effectCells(sp, a.k, a.target)) {
+      effectCells.to = null;
+      const cellsHit = effectCells(sp, a.k, a.target);
+      effects.push({ sp, k: a.k, to: effectCells.to });
+      for (const k of cellsHit) {
         if (spawnKeys.has(k) || holeAt(k)) continue;
-        if (obsAt(k)) { hits.add(k); continue; }
+        if (obsAt(k)) { hits.add(k); strong.add(k); continue; }
         const t = tileAt(k);
         if (!t) continue;
         clear.add(k);
@@ -1188,15 +1249,16 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       }
     }
     spawnKeys.forEach(k => clear.delete(k));
-    return { clear, hits, effects };
+    return { clear, hits, strong, effects };
   }
-  function damage(hits) {
+  // strong = 特殊アイテムで当てたマス（ボスには2ダメージ）
+  function damage(hits, strong = new Set()) {
     const kinds = new Set();
     let bossDown = false;
     for (const k of hits) {
       const o = obsAt(k);
       if (!o) continue;
-      o.hp--;
+      o.hp -= (o.kind === 'boss' && strong.has(k)) ? 2 : 1;
       kinds.add(o.kind);
       if (o.kind === 'boss') {
         goals.boss = Math.max(0, o.hp);
@@ -1273,9 +1335,12 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
             if (inB(a.r + dr, a.c + dc)) acts.push({ k: (a.r + dr) * N + a.c + dc, sp: 'bomb' });
           }
           pendingNote = '合体技！ <em>大爆発</em>';
-        } else {
+        } else if (a.sp !== 'db' && b.sp !== 'db') {
           acts.push({ k: keyOf(a), sp: 'h' }, { k: keyOf(b), sp: 'v' });
           pendingNote = '合体技！ <em>クロス</em>';
+        } else {
+          acts.push({ k: keyOf(a) }, { k: keyOf(b) });
+          pendingNote = '合体技！ <em>ダブル</em>';
         }
       } else {
         if (a.sp) acts.push({ k: keyOf(a) });
@@ -1342,9 +1407,9 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     await sleep(380);
   }
 
-  // コーチの喝：4手ごとに、アイテム2つをロッカーに閉じこめる
+  // コーチの喝：5手ごとに、アイテム1つをロッカーに閉じこめる
   async function bossAttack() {
-    if (!bossObj || movesUsed % 4 !== 0 || moves <= 0) return;
+    if (!bossObj || movesUsed % 5 !== 0 || moves <= 0) return;
     const pool = [];
     for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
       const t = grid[r][c];
@@ -1357,7 +1422,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     SFX.whistle();
     toast('コーチの<em>喝！</em><br><small>ロッカーに閉じこめられた</small>');
     await sleep(420);
-    for (let i = 0; i < 2 && pool.length; i++) {
+    for (let i = 0; i < 1 && pool.length; i++) {
       const [r, c] = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
       addLock(r, c, 2);
     }
@@ -1376,7 +1441,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       if (!cells.size && !nowActs.length) break;
       chain++;
       const spawnKeys = new Set(spawns.map(s => s.k));
-      const { clear, hits, effects } = computeClear(cells, nowActs, spawnKeys);
+      const { clear, hits, strong, effects } = computeClear(cells, nowActs, spawnKeys);
 
       const touched = new Set();
       for (const k of [...clear, ...spawnKeys]) {
@@ -1394,7 +1459,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
         if (kinds.has('all') || kinds.has('color')) SFX.color();
         if (kinds.has('bomb')) SFX.bomb();
         if (kinds.has('h') || kinds.has('v')) SFX.line();
-        effects.forEach(e => flash(e.sp, e.k));
+        if (kinds.has('db')) SFX.db();
+        effects.forEach(e => flash(e.sp, e.k, e.to));
       } else SFX.match(chain);
       if (pendingNote) { toast(`${pendingNote}<br><small>+${gain}kg</small>`); pendingNote = null; }
       else if (spawns.length) toast(`<em>${SP_NAMES[spawns[0].sp]}</em><br><small>完成！</small>`);
@@ -1405,7 +1471,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
       spawns.forEach(s => setSpecial(tileAt(s.k), s.sp));
       if (spawns.length) SFX.spawn();
-      damage(hits);
+      damage(hits, strong);
       let unlocked = false;
 
       for (const k of clear) {
