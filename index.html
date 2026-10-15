@@ -346,6 +346,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       <div class="total"><div class="label">獲得スター</div><div class="num" id="totalStars">0</div></div>
     </div>
     <div class="weeks" id="weeks"></div>
+    <p class="legend" style="text-align:right">バージョン 1.4（ボス戦BGM・アイコン）</p>
   </section>
 
   <section class="view" id="gameView" hidden>
@@ -510,13 +511,23 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   let ac = null, master = null;
   function unlockAudio() {
     try {
+      // iPhoneのマナーモード中でも音を鳴らす（Safari 17以降）
+      if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback';
+    } catch (e) {}
+    try {
       if (!ac) {
         ac = new (window.AudioContext || window.webkitAudioContext)();
         master = ac.createGain();
         master.gain.value = 0.5;
         master.connect(ac.destination);
       }
-      if (ac.state === 'suspended') ac.resume();
+      if (ac.state !== 'running') ac.resume();
+      // iPhone対策：無音を一瞬鳴らして音声を確実に有効にする
+      if (!unlockAudio.done) {
+        const b = ac.createBuffer(1, 1, 22050), s = ac.createBufferSource();
+        s.buffer = b; s.connect(ac.destination); s.start(0);
+        unlockAudio.done = true;
+      }
     } catch (e) {}
   }
   ['pointerdown', 'touchend', 'click'].forEach(ev => document.addEventListener(ev, unlockAudio, { capture: true, passive: true }));
@@ -636,7 +647,9 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     return {
       get fast() { return fast; },
       start() {
-        if (!ac || !soundOn || timer) return;
+        if (!soundOn || timer) return;
+        unlockAudio();
+        if (!ac) return;
         gain = ac.createGain(); gain.gain.value = 0.5; gain.connect(master);
         step = 0; next = ac.currentTime + 0.06;
         tick(); timer = setInterval(tick, 25);
