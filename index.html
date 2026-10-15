@@ -117,6 +117,18 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .dayb.next { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 14px rgba(240, 180, 41, .25); }
 .dayb.locked { opacity: .32; cursor: default; }
 .legend { font-size: .75rem; color: var(--chalk-dim); line-height: 1.6; margin: 0; }
+.menu-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.xfer { width: 100%; display: flex; flex-direction: column; gap: 8px; text-align: left; }
+.xfer h3 { margin: 6px 0 0; font-size: .8rem; letter-spacing: .1em; color: var(--chalk-dim); }
+.xfer textarea {
+  width: 100%; box-sizing: border-box; min-height: 64px; resize: none;
+  font: 500 .75rem/1.4 ui-monospace, Menlo, Consolas, monospace;
+  color: var(--chalk); background: var(--mat); border: 1px solid var(--mat-line); border-radius: 10px; padding: 8px;
+  -webkit-user-select: text; user-select: text; word-break: break-all;
+}
+.xfer textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.xfer .msg { font-size: .8rem; min-height: 1.2em; margin: 0; color: var(--chalk-dim); }
+.xfer .msg.ok { color: var(--good); } .xfer .msg.ng { color: var(--t0h); }
 
 /* ----- ゲーム画面 ----- */
 .hud { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: stretch; }
@@ -348,7 +360,10 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       <div class="total"><div class="label">獲得スター</div><div class="num" id="totalStars">0</div></div>
     </div>
     <div class="weeks" id="weeks"></div>
-    <p class="legend" style="text-align:right">バージョン 1.5（正方形ダンベル・ボス調整）</p>
+    <div class="menu-foot">
+      <button class="pill" id="transfer" type="button">データ引き継ぎ</button>
+      <p class="legend">バージョン 1.6</p>
+    </div>
   </section>
 
   <section class="view" id="gameView" hidden>
@@ -955,6 +970,71 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     const next = $('weeks').querySelector('.dayb.next');
     if (next) next.scrollIntoView({ block: 'center' });
   }
+  // ---------- データ引き継ぎ ----------
+  // 形式: MM1-<base64(JSON)>-<チェック用の数字>
+  function checksum(str) { let h = 7; for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 999983; return h; }
+  function exportCode() {
+    const b64 = btoa(JSON.stringify({ unlocked: progress.unlocked, stars: progress.stars }));
+    return `MM1-${b64}-${checksum(b64)}`;
+  }
+  function parseCode(code) {
+    const m = String(code).replace(/\s+/g, '').match(/^MM1-([A-Za-z0-9+/=]+)-(\d+)$/);
+    if (!m) return null;
+    if (checksum(m[1]) !== +m[2]) return null;
+    let d;
+    try { d = JSON.parse(atob(m[1])); } catch (e) { return null; }
+    if (!d || !Number.isInteger(d.unlocked) || d.unlocked < 0 || d.unlocked > 100000 || typeof d.stars !== 'object' || !d.stars) return null;
+    const stars = {};
+    for (const [k, v] of Object.entries(d.stars)) {
+      if (!/^\d+$/.test(k) || ![1, 2, 3].includes(v)) return null;
+      stars[k] = v;
+    }
+    return { unlocked: d.unlocked, stars };
+  }
+  const sumStars = st => Object.values(st).reduce((a, b) => a + b, 0);
+  function showTransfer() {
+    const code = exportCode();
+    showOverlay(`
+      <div class="big" style="font-size:1.25rem">データ引き継ぎ</div>
+      <div class="xfer">
+        <h3>このスマホのデータを書き出す</h3>
+        <p class="msg">DAY ${progress.unlocked + 1} まで・スター ${sumStars(progress.stars)} 個</p>
+        <textarea id="xOut" readonly>${code}</textarea>
+        <button class="btn" id="xCopy" type="button">コードをコピー</button>
+        <p class="msg" id="xCopyMsg"></p>
+        <h3>コードを読み込む</h3>
+        <textarea id="xIn" placeholder="ここにコードを貼り付け"></textarea>
+        <button class="btn sub" id="xLoad" type="button">読み込む</button>
+        <p class="msg" id="xLoadMsg">今より進んでいる記録だけが反映されます。今の記録が減ることはありません</p>
+      </div>`, [{ label: '閉じる', sub: true, fn: () => { hideOverlay(); showMenu(); } }]);
+    const out = $('xOut');
+    $('xCopy').addEventListener('click', () => {
+      const ok = () => { $('xCopyMsg').textContent = 'コピーしました。メモなどに貼って保存しておくと安心です'; $('xCopyMsg').className = 'msg ok'; };
+      const fallback = () => { out.focus(); out.select(); out.setSelectionRange(0, out.value.length); $('xCopyMsg').textContent = '選択した状態にしました。長押しして「コピー」を押してください'; $('xCopyMsg').className = 'msg'; };
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(out.value).then(ok, fallback);
+        else { out.select(); document.execCommand('copy') ? ok() : fallback(); }
+      } catch (e) { fallback(); }
+    });
+    $('xLoad').addEventListener('click', () => {
+      const msg = $('xLoadMsg');
+      const d = parseCode($('xIn').value);
+      if (!d) { msg.textContent = 'コードが正しくありません。最初の「MM1-」から最後まで、全部コピーできているか確認してください'; msg.className = 'msg ng'; return; }
+      try { localStorage.setItem('mm-progress-backup-' + Date.now(), JSON.stringify(progress)); } catch (e) {}
+      const merged = { unlocked: Math.max(progress.unlocked, d.unlocked), stars: { ...progress.stars } };
+      for (const [k, v] of Object.entries(d.stars)) merged.stars[k] = Math.max(merged.stars[k] || 0, v);
+      progress = merged;
+      save();
+      let saved = null;
+      try { saved = JSON.parse(localStorage.getItem('mm-progress')); } catch (e) {}
+      if (!saved || saved.unlocked !== merged.unlocked) { msg.textContent = '保存に失敗しました。もう一度試してください（今のデータはそのままです）'; msg.className = 'msg ng'; return; }
+      msg.textContent = `読み込みました！ DAY ${progress.unlocked + 1} まで・スター ${sumStars(progress.stars)} 個`;
+      msg.className = 'msg ok';
+      SFX.clear();
+    });
+  }
+  $('transfer').addEventListener('click', () => { if (!$('overlay')) showTransfer(); });
+
   $('weeks').addEventListener('click', e => {
     const b = e.target.closest('.dayb');
     if (!b || b.classList.contains('locked')) return;
