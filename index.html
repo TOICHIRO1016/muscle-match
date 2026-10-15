@@ -362,7 +362,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div class="weeks" id="weeks"></div>
     <div class="menu-foot">
       <button class="pill" id="transfer" type="button">データ引き継ぎ</button>
-      <p class="legend">バージョン 1.6</p>
+      <p class="legend">バージョン 1.7</p>
     </div>
   </section>
 
@@ -614,8 +614,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
   // ---------- ボス戦BGM（Web Audioでその場で演奏するオリジナル曲） ----------
   const BGM = (() => {
-    let timer = null, step = 0, next = 0, gain = null, fast = false;
-    const spb = () => 60 / (fast ? 172 : 150) / 4;
+    let timer = null, step = 0, next = 0, gain = null, fast = false, song = 'boss';
+    const spb = () => 60 / (song === 'normal' ? 112 : fast ? 172 : 150) / 4;
     const m2f = m => 440 * Math.pow(2, (m - 69) / 12);
     const _ = null;
     const ROOTS = [45, 41, 43, 40]; // Am - F - G - E
@@ -650,7 +650,25 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       g.gain.setValueAtTime(0.7, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
       o.connect(g); g.connect(gain); o.start(t); o.stop(t + 0.18);
     }
+    // 通常ステージ用：明るめの軽い曲（C - Am - F - G）
+    const N_ROOTS = [48, 45, 41, 43];
+    const N_MEL = [
+      [76, _, 79, _, 84, _, 79, _, 81, _, 79, _, 76, _, 74, _],
+      [72, _, 76, _, _, _, 81, _, 79, _, 76, _, 72, _, _, _],
+      [69, _, 72, _, 77, _, 81, _, 79, _, 77, _, 74, _, 72, _],
+      [74, _, 79, _, 83, _, _, _, 84, _, 83, _, 79, _, _, _]
+    ];
+    function scheduleNormal(s, t) {
+      const bar = Math.floor(s / 16), i = s % 16, len = spb();
+      if (i % 4 === 0) osc(m2f(N_ROOTS[bar]), t, len * 3.5, 'triangle', 0.2);
+      if (i % 4 === 2) osc(m2f(N_ROOTS[bar] + 7), t, len * 1.6, 'triangle', 0.1);
+      const m = N_MEL[bar][i];
+      if (m) { osc(m2f(m), t, len * 2.2, 'triangle', 0.07); osc(m2f(m + 12), t, len * 1.4, 'sine', 0.02); }
+      if (i % 8 === 0) kick(t);
+      if (i % 4 === 2) hit(t, 0.025, 0.05, 9000, 'highpass');
+    }
     function schedule(s, t) {
+      if (song === 'normal') return scheduleNormal(s, t);
       const bar = Math.floor(s / 16), i = s % 16, len = spb();
       if (i % 2 === 0) osc(m2f(ROOTS[bar] + (i % 4 === 2 ? 12 : 0)), t, len * 1.8, 'triangle', 0.32);
       const m = MEL[bar][i];
@@ -665,11 +683,12 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     }
     return {
       get fast() { return fast; },
-      start() {
+      start(name = 'boss') {
         if (!soundOn || timer) return;
         unlockAudio();
         if (!ac) return;
-        gain = ac.createGain(); gain.gain.value = 0.5; gain.connect(master);
+        song = name;
+        gain = ac.createGain(); gain.gain.value = name === 'normal' ? 0.38 : 0.5; gain.connect(master);
         step = 0; next = ac.currentTime + 0.06;
         tick(); timer = setInterval(tick, 25);
       },
@@ -685,10 +704,11 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       setFast(v) { fast = v; }
     };
   })();
-  const bossActive = () => !!(stage && stage.bossHp && bossObj && !$('gameView').hidden && !$('overlay'));
+  const musicActive = () => !!(stage && !$('gameView').hidden && !$('overlay') && (!stage.bossHp || bossObj));
+  const songName = () => (stage && stage.bossHp ? 'boss' : 'normal');
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) BGM.stop();
-    else if (bossActive()) BGM.start();
+    else if (musicActive()) BGM.start(songName());
   });
 
   const soundBtn = $('sound');
@@ -697,7 +717,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     soundOn = !soundOn;
     try { localStorage.setItem('mm-sound', soundOn ? 'on' : 'off'); } catch (e) {}
     renderSound();
-    if (soundOn) { unlockAudio(); SFX.select(); if (bossActive()) BGM.start(); }
+    if (soundOn) { unlockAudio(); SFX.select(); if (musicActive()) BGM.start(songName()); }
     else BGM.stop();
   });
   renderSound();
@@ -1077,7 +1097,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
        ${stars ? `<div class="stars" style="transform:scale(.6)">${[0, 1, 2].map(k => STAR.replace('<svg', `<svg class="${k < stars ? 'on' : ''}"`)).join('')}</div>` : ''}`,
       [
         { label: 'メニュー', sub: true, fn: showMenu },
-        { label: 'スタート', fn: () => { hideOverlay(); busy = false; SFX.start(); scheduleHint(); if (stage.bossHp) setTimeout(() => BGM.start(), 300); } }
+        { label: 'スタート', fn: () => { hideOverlay(); busy = false; SFX.start(); scheduleHint(); setTimeout(() => BGM.start(songName()), 300); } }
       ]
     );
     if (!seenGuide) showGuide(showStart); else showStart();
