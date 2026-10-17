@@ -403,7 +403,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div class="weeks" id="weeks"></div>
     <div class="menu-foot">
       <button class="pill" id="transfer" type="button">データ引き継ぎ</button>
-      <p class="legend">バージョン 2.3</p>
+      <p class="legend">バージョン 2.4</p>
     </div>
   </section>
 
@@ -673,7 +673,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   // ---------- ボス戦BGM（Web Audioでその場で演奏するオリジナル曲） ----------
   const BGM = (() => {
     let timer = null, step = 0, next = 0, gain = null, fast = false, song = 'boss';
-    const spb = () => 60 / (song === 'normal' ? 112 : fast ? 172 : 150) / 4;
+    const spb = () => 60 / (song === 'normal' ? 112 : song === 'menu' ? 96 : fast ? 172 : 150) / 4;
     const m2f = m => 440 * Math.pow(2, (m - 69) / 12);
     const _ = null;
     const ROOTS = [45, 41, 43, 40]; // Am - F - G - E
@@ -725,7 +725,35 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       if (i % 8 === 0) kick(t);
       if (i % 4 === 2) hit(t, 0.025, 0.05, 9000, 'highpass');
     }
+    // メニュー用：チル＋前向き（Cmaj7 - Am7 - Dm7 - G7、後半4小節でメロディ）
+    const M_CH = [[60, 64, 67, 71], [57, 60, 64, 67], [57, 60, 62, 65], [55, 59, 62, 65]];
+    const M_BASS = [48, 45, 50, 43];
+    const M_MEL = [
+      [76, _, _, 79, _, _, 81, _, 79, _, 76, _, _, _, 74, _],
+      [72, _, _, 76, _, _, 79, _, 76, _, _, _, 72, _, _, _],
+      [74, _, _, 77, _, _, 81, _, 79, _, 77, _, 74, _, 72, _],
+      [71, _, 74, _, 79, _, _, _, 77, _, 74, _, _, _, _, _]
+    ];
+    function ep(f, t, dur, vol) {
+      // やわらかいエレピ風：サインに少しだけ倍音を足す
+      osc(f, t, dur, 'sine', vol);
+      osc(f * 2.003, t, dur * 0.5, 'sine', vol * 0.18);
+    }
+    function scheduleMenu(s, t) {
+      const bar = Math.floor(s / 16) % 4, half = s >= 64, i = s % 16, len = spb();
+      if (i === 0) M_CH[bar].forEach(m => ep(m2f(m), t, len * 13, 0.045));
+      if (i === 10) M_CH[bar].forEach(m => ep(m2f(m), t, len * 5, 0.03));
+      if (i === 0 || i === 7 || i === 10) osc(m2f(M_BASS[bar]), t, len * (i === 0 ? 6 : 3), 'triangle', 0.22);
+      if (i === 0 || i === 8) kick(t);
+      if (i === 4 || i === 12) hit(t, 0.07, 0.1, 1500);
+      if (i % 2 === 0) hit(t, 0.02, i % 4 === 2 ? 0.05 : 0.025, 9000, 'highpass');
+      if (half) {
+        const m = M_MEL[bar][i];
+        if (m) { osc(m2f(m), t, len * 3, 'triangle', 0.055); osc(m2f(m + 12), t, len * 1.5, 'sine', 0.015); }
+      }
+    }
     function schedule(s, t) {
+      if (song === 'menu') return scheduleMenu(s, t);
       if (song === 'normal') return scheduleNormal(s, t);
       const bar = Math.floor(s / 16), i = s % 16, len = spb();
       if (i % 2 === 0) osc(m2f(ROOTS[bar] + (i % 4 === 2 ? 12 : 0)), t, len * 1.8, 'triangle', 0.32);
@@ -737,7 +765,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       if (fast && i % 4 === 2) hit(t, 0.03, 0.08, 9000, 'highpass');
     }
     function tick() {
-      while (next < ac.currentTime + 0.12) { schedule(step, next); next += spb(); step = (step + 1) % 64; }
+      while (next < ac.currentTime + 0.12) { schedule(step, next); next += spb(); step = (step + 1) % (song === 'menu' ? 128 : 64); }
     }
     return {
       get fast() { return fast; },
@@ -746,7 +774,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
         unlockAudio();
         if (!ac) return;
         song = name;
-        gain = ac.createGain(); gain.gain.value = name === 'normal' ? 0.38 : 0.5; gain.connect(master);
+        gain = ac.createGain(); gain.gain.value = name === 'boss' ? 0.5 : name === 'menu' ? 0.42 : 0.38; gain.connect(master);
         step = 0; next = ac.currentTime + 0.06;
         tick(); timer = setInterval(tick, 25);
       },
@@ -762,8 +790,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       setFast(v) { fast = v; }
     };
   })();
-  const musicActive = () => !!(stage && !$('gameView').hidden && !$('overlay') && (!stage.bossHp || bossObj));
-  const songName = () => (stage && stage.bossHp ? 'boss' : 'normal');
+  const musicActive = () => !$('menuView').hidden || !!(stage && !$('gameView').hidden && !$('overlay') && (!stage.bossHp || bossObj));
+  const songName = () => (!$('menuView').hidden ? 'menu' : stage && stage.bossHp ? 'boss' : 'normal');
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) BGM.stop();
     else if (musicActive()) BGM.start(songName());
@@ -1057,6 +1085,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     $('wallet').textContent = (progress.kg || 0).toLocaleString() + ' kg';
     const next = $('weeks').querySelector('.dayb.next');
     if (next) next.scrollIntoView({ block: 'center' });
+    BGM.start('menu');
   }
   // ---------- データ引き継ぎ ----------
   // 形式: MM1-<base64(JSON)>-<チェック用の数字>
