@@ -132,6 +132,24 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .bst:disabled { opacity: .35; cursor: default; }
 .wallet-line { font-size: .8rem !important; }
 .wallet-line b { color: var(--accent); font-variant-numeric: tabular-nums; }
+.toolbar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.tool {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 5px 2px 4px; border-radius: 12px; cursor: pointer;
+  background: var(--mat); border: 1px solid var(--mat-line); color: var(--chalk);
+  font: 700 .66rem/1.2 var(--body);
+}
+.tool svg { width: 24px; height: 24px; fill: currentColor; color: var(--accent); }
+.tool .tp { font-family: var(--display); font-weight: 400; font-size: .72rem; color: var(--accent); font-variant-numeric: tabular-nums; }
+.tool.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: var(--steel-d); }
+.tool:disabled { opacity: .35; cursor: default; }
+.aimtip {
+  position: absolute; z-index: 6; left: 50%; top: 8px; transform: translateX(-50%);
+  background: var(--accent); color: var(--floor); font: 700 .78rem var(--body);
+  padding: 6px 12px; border-radius: 999px; white-space: nowrap; pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,.4);
+}
+#board.aiming { box-shadow: 0 0 0 3px var(--accent); border-radius: 6px; }
 .menu-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .xfer { width: 100%; display: flex; flex-direction: column; gap: 8px; text-align: left; }
 .xfer h3 { margin: 6px 0 0; font-size: .8rem; letter-spacing: .1em; color: var(--chalk-dim); }
@@ -178,6 +196,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .mini[data-o] { background: var(--mat-line); }
 .mini[data-o] svg { width: 88%; height: 88%; }
 .score-line { display: flex; justify-content: space-between; align-items: baseline; font-size: .85rem; color: var(--chalk-dim); }
+.score-line #walletG { color: var(--accent); }
 .score-line b { font-family: var(--display); font-weight: 400; color: var(--chalk); font-size: 1.05rem; font-variant-numeric: tabular-nums; }
 
 .board-wrap { position: relative; }
@@ -377,7 +396,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div class="weeks" id="weeks"></div>
     <div class="menu-foot">
       <button class="pill" id="transfer" type="button">データ引き継ぎ</button>
-      <p class="legend">バージョン 2.0</p>
+      <p class="legend">バージョン 2.1</p>
     </div>
   </section>
 
@@ -393,11 +412,12 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       </div>
     </div>
     <div class="goals" id="goals"></div>
-    <div class="score-line"><span>総挙上量</span><span><b id="score">0</b> kg</span></div>
+    <div class="score-line"><span>総挙上量 <b id="score">0</b> kg</span><span>所持 <b id="walletG">0</b> kg</span></div>
     <div class="board-wrap" id="wrap">
+      <div class="aimtip" id="aimtip" hidden></div>
       <div id="board" aria-label="ゲーム盤"></div>
     </div>
-    <p class="howto">4つ以上・正方形でそろえると特殊アイテム。障害物はとなりで消すか、アイテムで壊そう</p>
+    <div class="toolbar" id="toolbar" aria-label="道具（手数を使わない）"></div>
   </section>
 </div>
 
@@ -608,6 +628,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       tone(n, 0.22, { type: 'triangle', vol: 0.22, delay: 0.02 });
     },
     spawn()   { tone(660, 0.28, { type: 'triangle', vol: 0.2, to: 1320 }); tone(1980, 0.3, { vol: 0.06, delay: 0.12 }); },
+    punch()   { tone(160, 0.16, { vol: 0.5, to: 60 }); noise(0.08, { vol: 0.35, freq: 1400 }); },
     db()      { noise(0.32, { vol: 0.3, freq: 500, to: 3000 }); tone(120, 0.2, { vol: 0.35, to: 50, delay: 0.38 }); noise(0.12, { vol: 0.3, freq: 600, delay: 0.38 }); },
     line()    { noise(0.35, { vol: 0.35, freq: 600, to: 4000 }); tone(300, 0.3, { type: 'sawtooth', vol: 0.06, to: 1200 }); },
     bomb()    { tone(150, 0.55, { vol: 0.5, to: 40 }); noise(0.4, { vol: 0.45, freq: 350, to: 120 }); },
@@ -946,6 +967,10 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   }
   function hideOverlay() { $('overlay')?.remove(); }
 
+  const TOOL_ICONS_G = {
+    punch: '<svg viewBox="0 0 40 40"><path d="M13 13a6 6 0 0 1 6-6h7a8 8 0 0 1 8 8v9a8 8 0 0 1-8 8h-7a6 6 0 0 1-6-6z"/><path d="M13 23h-3.5a3.5 3.5 0 0 1 0-7H13z"/><rect x="13" y="31" width="19" height="6" rx="2"/></svg>',
+    shuffle: '<svg viewBox="0 0 40 40"><path d="M6 13h20l-5-5M34 27H14l5 5" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  };
   const GUIDE_HTML = `
     <div class="big" style="font-size:1.25rem">遊び方</div>
     <div class="guide">
@@ -956,6 +981,9 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       <div class="row"><span class="mini" data-sp="color">${SP_ICONS.color}</span><div><b>ゴールデンプロテイン</b><span class="how">5つ一直線でできる。入れ替えた相手と同じアイテムを全部消す</span></div></div>
       <h3>連鎖ボーナス</h3>
       <div class="row"><span class="mini" data-sp="color">${SP_ICONS.color}</span><div><b>連鎖するとアイテムが出る</b><span class="how">3連鎖でバーベル、5連鎖でメディシンボール、7連鎖でゴールデンプロテインが盤面に出現</span></div></div>
+      <h3>道具（画面の下。手数を使わない）</h3>
+      <div class="row"><span class="mini" data-sp="h">${TOOL_ICONS_G.punch}</span><div><b>パンチ・横一列・縦一列</b><span class="how">貯めた重量を払って、選んだマスや列を消す。障害物やボスにも効く</span></div></div>
+      <div class="row"><span class="mini" data-sp="h">${TOOL_ICONS_G.shuffle}</span><div><b>ストレッチ</b><span class="how">盤面のアイテムを並べ替える</span></div></div>
       <h3>障害物</h3>
       <div class="row">${miniHtml('box')}<div><b>プロテインの箱</b><span class="how">となりでそろえるか、アイテムに巻き込むと1回で壊れる</span></div></div>
       <div class="row">${miniHtml('tire')}<div><b>タイヤ</b><span class="how">重いので2回当てないと壊れない</span></div></div>
@@ -979,6 +1007,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   // ---------- メニュー（トレーニング記録） ----------
   function showMenu() {
     busy = true;
+    aiming = null;
     BGM.stop();
     clearHint(); clearSel(); hideOverlay();
     $('gameView').hidden = true;
@@ -1083,8 +1112,77 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   });
 
   // ---------- ステージ開始 ----------
+  // ---------- 道具（手数を使わずに使える。貯めた重量で払う） ----------
+  const TOOL_ICONS = {
+    punch: '<svg viewBox="0 0 40 40"><path d="M13 13a6 6 0 0 1 6-6h7a8 8 0 0 1 8 8v9a8 8 0 0 1-8 8h-7a6 6 0 0 1-6-6z"/><path d="M13 23h-3.5a3.5 3.5 0 0 1 0-7H13z"/><rect x="13" y="31" width="19" height="6" rx="2"/></svg>',
+    row: SP_ICONS.h,
+    col: SP_ICONS.v,
+    shuffle: '<svg viewBox="0 0 40 40"><path d="M6 13h20l-5-5M34 27H14l5 5" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  };
+  const TOOLS = [
+    { id: 'punch', name: 'パンチ', price: 2000, tip: '壊したいマスをタップ' },
+    { id: 'row', name: '横一列', price: 3000, tip: '消したい横の列をタップ' },
+    { id: 'col', name: '縦一列', price: 3000, tip: '消したい縦の列をタップ' },
+    { id: 'shuffle', name: 'ストレッチ', price: 2000, tip: '' }
+  ];
+  let aiming = null;
+  $('toolbar').innerHTML = TOOLS.map(t => `<button type="button" class="tool" data-tool="${t.id}">${TOOL_ICONS[t.id]}<span>${t.name}</span><span class="tp">${t.price.toLocaleString()}kg</span></button>`).join('');
+  function renderTools() {
+    const kg = progress.kg || 0;
+    $('walletG').textContent = kg.toLocaleString();
+    document.querySelectorAll('.tool').forEach(btn => {
+      const t = TOOLS.find(x => x.id === btn.dataset.tool);
+      btn.classList.toggle('on', aiming === t.id);
+      btn.disabled = aiming !== t.id && t.price > kg;
+    });
+    board.classList.toggle('aiming', !!aiming);
+    const tip = $('aimtip');
+    tip.hidden = !aiming;
+    if (aiming) tip.textContent = TOOLS.find(x => x.id === aiming).tip + '（もう一度押すとやめる）';
+  }
+  function cancelAim() { aiming = null; renderTools(); }
+  $('toolbar').addEventListener('click', e => {
+    const btn = e.target.closest('.tool');
+    if (!btn || btn.disabled) return;
+    const t = TOOLS.find(x => x.id === btn.dataset.tool);
+    if (aiming === t.id) { cancelAim(); return; }
+    if (busy || $('overlay')) return;
+    clearSel(); clearHint();
+    SFX.select();
+    if (t.id === 'shuffle') { useTool(t, -1, -1); return; }
+    aiming = t.id;
+    renderTools();
+  });
+  async function useTool(t, r, c) {
+    if (busy || (progress.kg || 0) < t.price) { cancelAim(); return; }
+    busy = true;
+    aiming = null;
+    progress.kg -= t.price;
+    save();
+    renderTools();
+    clearHint(); clearSel();
+    const keepSweat = sweatCleared;
+    if (t.id === 'shuffle') {
+      await shuffle();
+    } else {
+      const k = r * N + c;
+      let act;
+      if (t.id === 'punch') act = grid[r][c]?.sp ? { k } : { k, sp: 'hit1' };
+      else act = { k, sp: t.id === 'row' ? 'h' : 'v' };
+      pendingNote = `<em>${t.name}！</em>`;
+      await resolve(new Set(), [act], false);
+    }
+    sweatCleared = keepSweat;
+    if (goalsDone()) return stageClear();
+    if (!anySpecial() && !findMove(typesOf())) await shuffle();
+    busy = false;
+    renderTools();
+    scheduleHint();
+  }
+
   function startStage(i) {
     stageIdx = i;
+    aiming = null;
     stage = getStage(i);
     BGM.stop();
     hideOverlay();
@@ -1108,7 +1206,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     if (cnt('s')) goals.sweat = cnt('s');
     movesUsed = 0;
     sweatCleared = false;
-    renderHud(); renderGoals();
+    renderHud(); renderGoals(); renderTools();
     const stars = progress.stars[i] || 0;
     const sel = new Set();
     const boostHtml = () => `
@@ -1136,7 +1234,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
         progress.kg -= cost; save();
         applyBoosts([...sel]);
       }
-      busy = false; scheduleHint();
+      busy = false; scheduleHint(); renderTools();
       setTimeout(() => BGM.start(songName()), 300);
     };
     const showStart = () => { showOverlay(
@@ -1355,6 +1453,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       setTimeout(() => el.remove(), 450);
       return;
     }
+    if (sp === 'hit1') sp = 'hit';
     if (sp === 'hit') { el.className = 'fx boom'; Object.assign(el.style, { left: (c - 0.5) * u + '%', top: (r - 0.5) * u + '%', width: 2 * u + '%', height: 2 * u + '%' }); board.appendChild(el); setTimeout(() => el.remove(), 450); return; }
     if (sp === 'h') { el.className = 'fx line'; Object.assign(el.style, { left: 0, width: '100%', top: r * u + '%', height: u + '%' }); }
     else if (sp === 'v') { el.className = 'fx line v'; Object.assign(el.style, { top: 0, height: '100%', left: c * u + '%', width: u + '%' }); }
@@ -1383,6 +1482,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (grid[y][x]?.t === tt) out.push(y * N + x);
     } else if (sp === 'all') {
       for (let i = 0; i < N * N; i++) out.push(i);
+    } else if (sp === 'hit1') {
+      out.push(k);
     } else if (sp === 'db') {
       for (const [dr, dc] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) if (inB(r + dr, c + dc)) out.push((r + dr) * N + c + dc);
       const to = pickTarget(new Set(out));
@@ -1646,6 +1747,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
         if (kinds.has('bomb')) SFX.bomb();
         if (kinds.has('h') || kinds.has('v')) SFX.line();
         if (kinds.has('db')) SFX.db();
+        if (kinds.has('hit1')) SFX.punch();
         effects.forEach(e => flash(e.sp, e.k, e.to));
       } else SFX.match(chain);
       if (pendingNote) { toast(`${pendingNote}<br><small>+${gain}kg</small>`); pendingNote = null; }
@@ -1764,12 +1866,14 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   board.addEventListener('pointerdown', e => {
     if (busy) return;
     const cell = cellAt(e);
-    if (!cell || !grid[cell.r][cell.c]) return;
+    if (!cell) return;
+    if (aiming) { if (!hole[cell.r][cell.c]) start = { ...cell, aim: true }; return; }
+    if (!grid[cell.r][cell.c]) return;
     start = { ...cell, x: e.clientX, y: e.clientY, moved: false };
     board.setPointerCapture(e.pointerId);
   });
   board.addEventListener('pointermove', e => {
-    if (!start || start.moved) return;
+    if (!start || start.moved || start.aim) return;
     const dx = e.clientX - start.x, dy = e.clientY - start.y;
     const th = start.s * 0.35;
     if (Math.abs(dx) < th && Math.abs(dy) < th) return;
@@ -1779,8 +1883,9 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   });
   board.addEventListener('pointerup', () => {
     if (!start) return;
-    const { r, c, moved } = start;
+    const { r, c, moved, aim } = start;
     start = null;
+    if (aim) { if (aiming && !busy) useTool(TOOLS.find(t => t.id === aiming), r, c); return; }
     if (moved || busy || !grid[r][c]) return;
     if (isLocked(r, c)) { clearSel(); SFX.invalid(); return; }
     if (selected) {
