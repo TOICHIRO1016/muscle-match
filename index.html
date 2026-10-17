@@ -441,7 +441,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div class="weeks" id="weeks"></div>
     <div class="menu-foot">
       <button class="pill" id="transfer" type="button">データ引き継ぎ</button>
-      <p class="legend">バージョン 2.7</p>
+      <p class="legend">バージョン 2.8</p>
     </div>
   </section>
 
@@ -1286,11 +1286,15 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   }
   let voiceOn = true;
   try { voiceOn = localStorage.getItem('mm-voice') !== 'off'; } catch (e) {}
-  let jaVoice = null;
+  let jaVoice = null, maleVoice = false;
+  // 男性の声（iPhoneなら Otoya / Hattori）を優先。なければ女性の声を低くして使う
   function pickVoice() {
     try {
       const vs = speechSynthesis.getVoices().filter(v => /^ja/i.test(v.lang));
-      jaVoice = vs.find(v => /otoya|hattori|male|男/i.test(v.name)) || vs[0] || null;
+      const m = vs.filter(v => /otoya|hattori|ichiro|keita|daichi|naoki|male|男/i.test(v.name) && !/female|女/i.test(v.name));
+      const best = m.find(v => /enhanced|premium|拡張|高品質/i.test(v.name)) || m[0];
+      jaVoice = best || vs[0] || null;
+      maleVoice = !!best;
     } catch (e) {}
   }
   try { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; } catch (e) {}
@@ -1300,8 +1304,9 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(String(text).replace(/[「」]/g, ''));
       u.lang = 'ja-JP';
+      if (!jaVoice || !maleVoice) pickVoice();
       if (jaVoice) u.voice = jaVoice;
-      u.pitch = 0.7; u.rate = 1.12; u.volume = 1;
+      u.pitch = maleVoice ? 0.85 : 0.4; u.rate = 1.08; u.volume = 1;
       speechSynthesis.speak(u);
     } catch (e) {}
   }
