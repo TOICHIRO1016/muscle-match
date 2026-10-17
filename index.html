@@ -403,7 +403,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div class="weeks" id="weeks"></div>
     <div class="menu-foot">
       <button class="pill" id="transfer" type="button">データ引き継ぎ</button>
-      <p class="legend">バージョン 2.2</p>
+      <p class="legend">バージョン 2.3</p>
     </div>
   </section>
 
@@ -998,7 +998,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       <div class="row"><span class="mini" data-sp="h">${SP_ICONS.h}</span><div><b>バーベル</b><span class="how">4つ一直線でできる。向きに合わせて一列まとめて消す</span></div></div>
       <div class="row"><span class="mini" data-sp="db">${SP_ICONS.db}</span><div><b>ダンベル</b><span class="how">2×2の正方形でそろえるとできる。周りを消してから、ボスや障害物めがけて飛んでいく</span></div></div>
       <div class="row"><span class="mini" data-sp="bomb">${SP_ICONS.bomb}</span><div><b>メディシンボール</b><span class="how">L字・T字でできる。周りの5×5マスを吹き飛ばす</span></div></div>
-      <div class="row"><span class="mini" data-sp="color">${SP_ICONS.color}</span><div><b>ゴールデンプロテイン</b><span class="how">5つ一直線でできる。入れ替えた相手と同じアイテムを全部消す</span></div></div>
+      <div class="row"><span class="mini" data-sp="color">${SP_ICONS.color}</span><div><b>ゴールデンプロテイン</b><span class="how">5つ一直線でできる。入れ替えた相手と同じアイテムを全部消して、そのとなりの障害物も壊す</span></div></div>
       <h3>連鎖ボーナス</h3>
       <div class="row"><span class="mini" data-sp="color">${SP_ICONS.color}</span><div><b>連鎖するとアイテムが出る</b><span class="how">3連鎖でバーベル、5連鎖でメディシンボール、7連鎖でゴールデンプロテインが盤面に出現</span></div></div>
       <h3>道具（画面の下。手数を使わない）</h3>
@@ -1553,6 +1553,13 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
         const t = tileAt(k);
         if (!t) continue;
         clear.add(k);
+        // ゴールデンプロテイン：消したアイテムのとなりの障害物にもダメージ
+        if (sp === 'color') {
+          const r = Math.floor(k / N), c = k % N;
+          for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            if (inB(r + dr, c + dc) && obs[r + dr][c + dc]) hits.add((r + dr) * N + c + dc);
+          }
+        }
         if (t.sp && !fired.has(k)) queue.push({ k });
       }
     }
