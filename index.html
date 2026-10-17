@@ -188,6 +188,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .bubble .who { display: block; font-size: .66rem; font-weight: 700; color: var(--accent); letter-spacing: .04em; }
 .kin-card { width: 100%; }
 .kin-card .kin-av { width: 70px; height: 70px; cursor: default; }
+@media (max-width: 380px) { h1 { font-size: 1rem; } header .pill { padding: 6px 8px; font-size: .74rem; } header .tools { gap: 5px; } }
 .menu-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .xfer { width: 100%; display: flex; flex-direction: column; gap: 8px; text-align: left; }
 .xfer h3 { margin: 6px 0 0; font-size: .8rem; letter-spacing: .1em; color: var(--chalk-dim); }
@@ -419,6 +420,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <h1 id="title">マッスル<span>マッチ</span></h1>
     <div class="tools">
       <button class="pill" id="sound" type="button" aria-pressed="true">音 ON</button>
+      <button class="pill" id="voice" type="button" aria-pressed="true">声 ON</button>
       <button class="pill" id="help" type="button">遊び方</button>
       <button class="pill" id="retry" type="button" hidden>やり直し</button>
     </div>
@@ -439,7 +441,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div class="weeks" id="weeks"></div>
     <div class="menu-foot">
       <button class="pill" id="transfer" type="button">データ引き継ぎ</button>
-      <p class="legend">バージョン 2.6</p>
+      <p class="legend">バージョン 2.7</p>
     </div>
   </section>
 
@@ -841,7 +843,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     try { localStorage.setItem('mm-sound', soundOn ? 'on' : 'off'); } catch (e) {}
     renderSound();
     if (soundOn) { unlockAudio(); SFX.select(); if (musicActive()) BGM.start(songName()); }
-    else BGM.stop();
+    else { BGM.stop(); try { speechSynthesis.cancel(); } catch (e) {} }
   });
   renderSound();
 
@@ -1100,6 +1102,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     $('retry').hidden = true;
     $('toMenu').hidden = true;
     $('title').hidden = false;
+    $('voice').hidden = false;
     const unlocked = progress.unlocked;
     const weeks = Math.floor(unlocked / 7) + 2;
     let total = 0, html = '';
@@ -1208,30 +1211,50 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   // ---------- ステージ開始 ----------
   // ---------- 筋一朗（相棒キャラ） ----------
   const KIN_FORMS = [
-    { from: 0, name: 'ひょろ筋一朗' },
-    { from: 7, name: '細マッチョ筋一朗' },
-    { from: 21, name: 'マッチョ筋一朗' },
-    { from: 42, name: 'ゴリマッチョ筋一朗' }
+    { from: 0, name: 'ひょろ' },
+    { from: 7, name: 'もやし卒業' },
+    { from: 21, name: '細マッチョ' },
+    { from: 35, name: '引き締まり' },
+    { from: 50, name: 'マッチョ' },
+    { from: 70, name: 'ムキムキ' },
+    { from: 90, name: '脱いだらすごい' },
+    { from: 115, name: 'ゴリマッチョ' },
+    { from: 140, name: 'ボディビルダー' },
+    { from: 170, name: '筋肉の神' }
   ];
   function kinLevel() { let lv = 0; KIN_FORMS.forEach((f, i) => { if (progress.unlocked >= f.from) lv = i; }); return lv; }
   function kinSvg(lv = 0, mood = 'normal') {
-    const k = [0.25, 0.75, 1.2, 1.7][lv];
-    const skin = '#e9b68a', skd = '#c98f62', ink = '#2c1d14';
+    const k = 0.2 + lv * 0.17;
+    const tan = lv >= 7;
+    const skin = tan ? '#d69a6a' : '#e9b68a', skd = tan ? '#a8703f' : '#c98f62', ink = '#2c1d14';
+    const tw = 60 + lv * 6, wa = tw - 8 - lv * 3.2, nw = 30 + lv * 3.6;
     const up = mood === 'cheer' ? -26 : 0;
-    const sx = 58 + 30 * k, ex = 86 + 44 * k, hx = 120 + 10 * k;
+    const sx = tw - 12, ex = sx + 28 + 18 * k, hx = 112 + 14 * k;
     const hy = 186 + up, ey = 268 + up * 0.4;
-    const ua = 22 + 30 * k, fa = 18 + 24 * k, br = 12 + 20 * k, tw = 70 + 22 * k, nw = 34 + 14 * k;
+    const ua = 18 + 30 * k, fa = 15 + 24 * k, br = 8 + 22 * k, dr = 10 + 16 * k;
     const db = (x, y) => `<g transform="translate(${x} ${y})"><rect x="-34" y="-6" width="68" height="12" rx="3" fill="#c5ccd1"/><rect x="-44" y="-26" width="16" height="52" rx="5" fill="#6b767e"/><rect x="28" y="-26" width="16" height="52" rx="5" fill="#6b767e"/><rect x="-56" y="-18" width="13" height="36" rx="4" fill="#808b93"/><rect x="43" y="-18" width="13" height="36" rx="4" fill="#808b93"/></g>`;
     const arm = side => {
       const X = v => 256 + side * v;
-      const bx = X((sx + ex) / 2 + 4), by = (312 + ey) / 2 + 2;
-      return `<path d="M${X(sx)} 314 Q${X(ex - 10)} 300 ${X(ex)} ${ey}" fill="none" stroke="${skin}" stroke-width="${ua}" stroke-linecap="round"/>`
-        + `<path d="M${X(ex)} ${ey} Q${X(ex + 6)} ${(ey + hy) / 2} ${X(hx)} ${hy}" fill="none" stroke="${skin}" stroke-width="${fa}" stroke-linecap="round"/>`
+      const bx = X((sx + ex) / 2 + 4), by = (314 + ey) / 2 + 2;
+      const fx = (ex + hx) / 2, fy = (ey + hy) / 2;
+      return `<path d="M${X(sx)} 316 Q${X(ex - 10)} 300 ${X(ex)} ${ey}" fill="none" stroke="${skin}" stroke-width="${ua}" stroke-linecap="round"/>`
+        + `<path d="M${X(ex)} ${ey} Q${X(ex + 6)} ${fy} ${X(hx)} ${hy}" fill="none" stroke="${skin}" stroke-width="${fa}" stroke-linecap="round"/>`
+        + (lv >= 3 ? `<circle cx="${X(sx + 2)}" cy="318" r="${dr}" fill="${skin}"/>` : '')
         + `<circle cx="${bx}" cy="${by}" r="${br}" fill="${skin}"/>`
         + `<path d="M${bx - side * br * 0.7} ${by - 2} Q${bx} ${by - br * 0.9} ${bx + side * br * 0.7} ${by - 4}" fill="none" stroke="${skd}" stroke-width="4" stroke-linecap="round" opacity=".6"/>`
+        + (lv >= 7 ? `<path d="M${X(fx + 6)} ${fy + 18} q${side * -6} -14 ${side * 2} -30 M${bx} ${by + br * 0.4} q${side * 8} -6 ${side * 14} -2" fill="none" stroke="${skd}" stroke-width="2.5" stroke-linecap="round" opacity=".8"/>` : '')
         + db(X(hx), hy - 14)
         + `<circle cx="${X(hx)}" cy="${hy - 2}" r="${12 + 10 * k}" fill="${skin}"/>`;
     };
+    // 胸と腹筋
+    const pw = 30 + lv * 4.5;
+    const pecs = lv >= 4 ? `<path d="M256 338 Q${256 - pw} 326 ${256 - pw - 4} 366 Q${256 - pw / 2} 394 256 382 Z" fill="${skin}" stroke="${skd}" stroke-width="3"/><path d="M256 338 Q${256 + pw} 326 ${256 + pw + 4} 366 Q${256 + pw / 2} 394 256 382 Z" fill="${skin}" stroke="${skd}" stroke-width="3"/>` : '';
+    const aw = 22 + lv * 1.6;
+    const abs = lv >= 6 ? `<g fill="none" stroke="${skd}" stroke-width="3.2" stroke-linecap="round" opacity=".75"><path d="M256 392 V520"/><path d="M${256 - aw} 418 Q256 424 ${256 + aw} 418"/><path d="M${256 - aw + 2} 448 Q256 454 ${256 + aw - 2} 448"/><path d="M${256 - aw + 4} 478 Q256 484 ${256 + aw - 4} 478"/><path d="M${256 - tw + 30} 410 q8 40 18 90 M${256 + tw - 30} 410 q-8 40 -18 90"/></g>` : '';
+    let shirt = '';
+    if (lv <= 3) shirt = `<path d="M${256 - tw + 26} 330 Q256 312 ${256 + tw - 26} 330 L${256 + wa - 6} 540 L${256 - wa + 6} 540 Z" fill="#d9473f"/><path d="M228 324 Q256 354 284 324" fill="${skin}"/><text x="256" y="452" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="46" fill="#f0b429">筋</text>`;
+    else if (lv <= 5) shirt = `<path d="M${256 - 24} 326 L${256 - tw + 44} 396 M${256 + 24} 326 L${256 + tw - 44} 396" stroke="#24282c" stroke-width="10" stroke-linecap="round"/><path d="M${256 - tw + 34} 396 Q256 384 ${256 + tw - 34} 396 L${256 + wa - 6} 540 L${256 - wa + 6} 540 Z" fill="#24282c"/><text x="256" y="470" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="38" fill="#f0b429">筋</text>`;
+    const traps = lv >= 3 ? `<path d="M${256 - nw / 2} 262 Q${256 - tw * 0.55} 292 ${256 - tw + 10} 318 L${256 + tw - 10} 318 Q${256 + tw * 0.55} 292 ${256 + nw / 2} 262 Z" fill="${skin}"/>` : '';
     let mouth, eyes, extra = '';
     if (mood === 'cheer') {
       eyes = `<path d="M228 242 q8 -9 16 0 M268 242 q8 -9 16 0" stroke="${ink}" stroke-width="5" fill="none" stroke-linecap="round"/>`;
@@ -1245,24 +1268,45 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       eyes = `<circle cx="236" cy="240" r="5.5" fill="${ink}"/><circle cx="276" cy="240" r="5.5" fill="${ink}"/>`;
       mouth = `<path d="M234 256 Q256 280 278 256 Z" fill="#fff" stroke="${ink}" stroke-width="4" stroke-linejoin="round"/>`;
     }
-    const pecs = lv >= 2 ? `<path d="M${256 - tw + 34} 360 Q${256 - 30} 376 256 366 Q${256 + 30} 376 ${256 + tw - 34} 360" fill="none" stroke="#b33a32" stroke-width="5" opacity=".6"/>` : '';
-    return `<svg viewBox="52 112 408 408" xmlns="http://www.w3.org/2000/svg">
-      <path d="M${256 - tw} 314 Q256 290 ${256 + tw} 314 L${256 + tw - 16} 540 L${256 - tw + 16} 540 Z" fill="${skin}"/>
-      <path d="M${256 - tw + 26} 330 Q256 312 ${256 + tw - 26} 330 L${256 + tw - 26} 540 L${256 - tw + 26} 540 Z" fill="#d9473f"/>
-      <path d="M228 324 Q256 354 284 324" fill="${skin}"/>
-      ${pecs}
-      <text x="256" y="452" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="46" fill="#f0b429">筋</text>
+    const aura = lv >= 9 ? `<defs><radialGradient id="kinAura" cx=".5" cy=".55" r=".5"><stop offset=".3" stop-color="#ffe08a" stop-opacity=".75"/><stop offset="1" stop-color="#ffe08a" stop-opacity="0"/></radialGradient></defs><circle cx="256" cy="320" r="230" fill="url(#kinAura)"/>` : '';
+    const band = lv >= 9 ? '#fff4c2' : '#f0b429';
+    return `<svg viewBox="40 100 432 432" xmlns="http://www.w3.org/2000/svg">
+      ${aura}
+      <path d="M${256 - tw} 316 Q256 290 ${256 + tw} 316 L${256 + wa} 540 L${256 - wa} 540 Z" fill="${skin}"/>
+      ${traps}${pecs}${abs}${shirt}
       ${arm(-1)}${arm(1)}
       <rect x="${256 - nw / 2}" y="250" width="${nw}" height="62" rx="12" fill="${skd}"/>
       <circle cx="256" cy="218" r="58" fill="${skin}"/>
       <path d="M198 214 Q200 156 256 156 Q312 156 314 214 Q300 186 256 186 Q212 186 198 214Z" fill="${ink}"/>
-      <rect x="198" y="192" width="116" height="18" rx="7" fill="#f0b429"/>
-      <path d="M310 198 l26 -10 -6 22z" fill="#f0b429"/>
+      <rect x="198" y="192" width="116" height="18" rx="7" fill="${band}"/>
+      <path d="M310 198 l26 -10 -6 22z" fill="${band}"/>
       <path d="M226 ${mood === 'grit' ? 224 : 226} l20 ${mood === 'grit' ? 7 : 5} M286 ${mood === 'grit' ? 224 : 226} l-20 ${mood === 'grit' ? 7 : 5}" stroke="${ink}" stroke-width="6" stroke-linecap="round"/>
       ${eyes}${mouth}${extra}
     </svg>`;
   }
+  let voiceOn = true;
+  try { voiceOn = localStorage.getItem('mm-voice') !== 'off'; } catch (e) {}
+  let jaVoice = null;
+  function pickVoice() {
+    try {
+      const vs = speechSynthesis.getVoices().filter(v => /^ja/i.test(v.lang));
+      jaVoice = vs.find(v => /otoya|hattori|male|男/i.test(v.name)) || vs[0] || null;
+    } catch (e) {}
+  }
+  try { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; } catch (e) {}
+  function speak(text) {
+    if (!voiceOn || !soundOn || !('speechSynthesis' in window)) return;
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(String(text).replace(/[「」]/g, ''));
+      u.lang = 'ja-JP';
+      if (jaVoice) u.voice = jaVoice;
+      u.pitch = 0.7; u.rate = 1.12; u.volume = 1;
+      speechSynthesis.speak(u);
+    } catch (e) {}
+  }
   function kinCard(mood, text) {
+    setTimeout(() => speak(text), 250);
     return `<div class="kin kin-card"><div class="kin-av">${kinSvg(kinLevel(), mood)}</div><div class="bubble"><span class="who">筋一朗</span>${text}</div></div>`;
   }
   const pick = arr => arr[Math.floor(Math.random() * arr.length)];
@@ -1292,8 +1336,9 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     const lv = kinLevel();
     $('kinAv').innerHTML = kinSvg(lv, mood);
     const nextF = KIN_FORMS[lv + 1];
-    $('kinWho').textContent = `筋一朗 Lv.${lv + 1} ${KIN_FORMS[lv].name.replace('筋一朗', '') || 'ひょろ'}${nextF ? `（次の変身まであと${nextF.from - progress.unlocked}日）` : '（最終形態）'}`;
+    $('kinWho').textContent = `筋一朗 Lv.${lv + 1} ${KIN_FORMS[lv].name}${nextF ? `（次の変身まであと${nextF.from - progress.unlocked}日）` : '（最終形態）'}`;
     $('kinSay').textContent = text;
+    speak(text);
     const av = $('kinAv'); av.classList.remove('bounce'); av.offsetWidth; av.classList.add('bounce');
   }
   function kinGreet(prevLogin) {
@@ -1302,7 +1347,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     if (lv > progress.kinLv) {
       progress.kinLv = lv; save();
       SFX.spawn();
-      return kinSay(`見てくれ、パワーアップした！「${KIN_FORMS[lv].name}」になったぞ！`, 'cheer');
+      return kinSay(`見てくれ、パワーアップした！ Lv.${lv + 1}「${KIN_FORMS[lv].name}」になったぞ！`, 'cheer');
     }
     const ago = new Date(); ago.setDate(ago.getDate() - 2);
     if (prevLogin && prevLogin < dayKey(ago)) return kinSay('おかえり！筋肉は待っててくれたぞ', 'cheer');
@@ -1313,6 +1358,16 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     kinSay(KIN_TIPS[kinTip], Math.random() < 0.3 ? 'cheer' : 'normal');
     SFX.select();
   });
+
+  const voiceBtn = $('voice');
+  function renderVoice() { voiceBtn.textContent = voiceOn ? '声 ON' : '声 OFF'; voiceBtn.setAttribute('aria-pressed', String(voiceOn)); }
+  voiceBtn.addEventListener('click', () => {
+    voiceOn = !voiceOn;
+    try { localStorage.setItem('mm-voice', voiceOn ? 'on' : 'off'); } catch (e) {}
+    renderVoice();
+    if (voiceOn) speak('声、オン！'); else try { speechSynthesis.cancel(); } catch (e) {}
+  });
+  renderVoice();
 
   // ---------- ストック ----------
   const stock = id => (progress.inv && progress.inv[id]) || 0;
@@ -1447,6 +1502,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     $('retry').hidden = false;
     $('toMenu').hidden = false;
     $('title').hidden = true;
+    $('voice').hidden = true;
     fitBoard();
     moves = stage.moves;
     score = 0;
