@@ -165,6 +165,29 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .lb.got { opacity: .4; }
 .lb.today { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: var(--steel-d); }
 .lb.today .lbd { color: var(--accent); }
+.kin { display: flex; gap: 10px; align-items: center; }
+.kin-av {
+  width: 86px; height: 86px; flex: none; padding: 0; cursor: pointer;
+  border-radius: 18px; border: 1px solid var(--mat-line);
+  background: radial-gradient(circle at 50% 60%, rgba(240, 180, 41, .25), rgba(240, 180, 41, 0) 70%), var(--mat);
+  overflow: hidden;
+}
+.kin-av svg { width: 100%; height: 100%; display: block; }
+.kin-av.bounce svg { animation: kinBounce 420ms cubic-bezier(.2,.9,.3,1.4); }
+@keyframes kinBounce { 30% { transform: translateY(-8%) scale(1.06); } }
+.bubble {
+  position: relative; min-width: 0; flex: 1;
+  background: var(--mat-hi); border: 1px solid var(--steel); border-radius: 12px;
+  padding: 7px 10px; font-size: .82rem; line-height: 1.5; text-align: left;
+}
+.bubble::before {
+  content: ""; position: absolute; left: -7px; top: 50%; width: 12px; height: 12px;
+  background: var(--mat-hi); border-left: 1px solid var(--steel); border-bottom: 1px solid var(--steel);
+  transform: translateY(-50%) rotate(45deg);
+}
+.bubble .who { display: block; font-size: .66rem; font-weight: 700; color: var(--accent); letter-spacing: .04em; }
+.kin-card { width: 100%; }
+.kin-card .kin-av { width: 70px; height: 70px; cursor: default; }
 .menu-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .xfer { width: 100%; display: flex; flex-direction: column; gap: 8px; text-align: left; }
 .xfer h3 { margin: 6px 0 0; font-size: .8rem; letter-spacing: .1em; color: var(--chalk-dim); }
@@ -409,10 +432,14 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       </div>
       <div class="total"><div class="label">獲得スター</div><div class="num" id="totalStars">0</div><div class="label" style="margin-top:4px">貯めた重量</div><div class="kg" id="wallet">0 kg</div></div>
     </div>
+    <div class="kin" id="kinRow">
+      <button type="button" class="kin-av" id="kinAv" aria-label="筋一朗に話しかける"></button>
+      <div class="bubble"><span class="who" id="kinWho">筋一朗</span><span id="kinSay"></span></div>
+    </div>
     <div class="weeks" id="weeks"></div>
     <div class="menu-foot">
       <button class="pill" id="transfer" type="button">データ引き継ぎ</button>
-      <p class="legend">バージョン 2.5</p>
+      <p class="legend">バージョン 2.6</p>
     </div>
   </section>
 
@@ -1096,6 +1123,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     const next = $('weeks').querySelector('.dayb.next');
     if (next) next.scrollIntoView({ block: 'center' });
     BGM.start('menu');
+    kinGreet(progress.lastLogin);
     if (!$('overlay')) checkLogin();
   }
   // ---------- データ引き継ぎ ----------
@@ -1178,6 +1206,114 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   });
 
   // ---------- ステージ開始 ----------
+  // ---------- 筋一朗（相棒キャラ） ----------
+  const KIN_FORMS = [
+    { from: 0, name: 'ひょろ筋一朗' },
+    { from: 7, name: '細マッチョ筋一朗' },
+    { from: 21, name: 'マッチョ筋一朗' },
+    { from: 42, name: 'ゴリマッチョ筋一朗' }
+  ];
+  function kinLevel() { let lv = 0; KIN_FORMS.forEach((f, i) => { if (progress.unlocked >= f.from) lv = i; }); return lv; }
+  function kinSvg(lv = 0, mood = 'normal') {
+    const k = [0.25, 0.75, 1.2, 1.7][lv];
+    const skin = '#e9b68a', skd = '#c98f62', ink = '#2c1d14';
+    const up = mood === 'cheer' ? -26 : 0;
+    const sx = 58 + 30 * k, ex = 86 + 44 * k, hx = 120 + 10 * k;
+    const hy = 186 + up, ey = 268 + up * 0.4;
+    const ua = 22 + 30 * k, fa = 18 + 24 * k, br = 12 + 20 * k, tw = 70 + 22 * k, nw = 34 + 14 * k;
+    const db = (x, y) => `<g transform="translate(${x} ${y})"><rect x="-34" y="-6" width="68" height="12" rx="3" fill="#c5ccd1"/><rect x="-44" y="-26" width="16" height="52" rx="5" fill="#6b767e"/><rect x="28" y="-26" width="16" height="52" rx="5" fill="#6b767e"/><rect x="-56" y="-18" width="13" height="36" rx="4" fill="#808b93"/><rect x="43" y="-18" width="13" height="36" rx="4" fill="#808b93"/></g>`;
+    const arm = side => {
+      const X = v => 256 + side * v;
+      const bx = X((sx + ex) / 2 + 4), by = (312 + ey) / 2 + 2;
+      return `<path d="M${X(sx)} 314 Q${X(ex - 10)} 300 ${X(ex)} ${ey}" fill="none" stroke="${skin}" stroke-width="${ua}" stroke-linecap="round"/>`
+        + `<path d="M${X(ex)} ${ey} Q${X(ex + 6)} ${(ey + hy) / 2} ${X(hx)} ${hy}" fill="none" stroke="${skin}" stroke-width="${fa}" stroke-linecap="round"/>`
+        + `<circle cx="${bx}" cy="${by}" r="${br}" fill="${skin}"/>`
+        + `<path d="M${bx - side * br * 0.7} ${by - 2} Q${bx} ${by - br * 0.9} ${bx + side * br * 0.7} ${by - 4}" fill="none" stroke="${skd}" stroke-width="4" stroke-linecap="round" opacity=".6"/>`
+        + db(X(hx), hy - 14)
+        + `<circle cx="${X(hx)}" cy="${hy - 2}" r="${12 + 10 * k}" fill="${skin}"/>`;
+    };
+    let mouth, eyes, extra = '';
+    if (mood === 'cheer') {
+      eyes = `<path d="M228 242 q8 -9 16 0 M268 242 q8 -9 16 0" stroke="${ink}" stroke-width="5" fill="none" stroke-linecap="round"/>`;
+      mouth = `<path d="M230 254 Q256 294 282 254 Z" fill="#7a2a1f" stroke="${ink}" stroke-width="3.5" stroke-linejoin="round"/><path d="M234 256 H278 L274 263 H238 Z" fill="#fff"/>`;
+      extra = `<g fill="#f0b429"><path d="M330 120l7 17 17 7-17 7-7 17-7-17-17-7 17-7z"/><path d="M176 112l5 12 12 5-12 5-5 12-5-12-12-5 12-5z"/></g>`;
+    } else if (mood === 'grit') {
+      eyes = `<circle cx="236" cy="242" r="5.5" fill="${ink}"/><circle cx="276" cy="242" r="5.5" fill="${ink}"/>`;
+      mouth = `<path d="M240 264 Q256 258 272 264" stroke="${ink}" stroke-width="5" fill="none" stroke-linecap="round"/>`;
+      extra = `<path d="M300 222 q9 11 0 20 q-9 -9 0 -20z" fill="#bfe3f7"/>`;
+    } else {
+      eyes = `<circle cx="236" cy="240" r="5.5" fill="${ink}"/><circle cx="276" cy="240" r="5.5" fill="${ink}"/>`;
+      mouth = `<path d="M234 256 Q256 280 278 256 Z" fill="#fff" stroke="${ink}" stroke-width="4" stroke-linejoin="round"/>`;
+    }
+    const pecs = lv >= 2 ? `<path d="M${256 - tw + 34} 360 Q${256 - 30} 376 256 366 Q${256 + 30} 376 ${256 + tw - 34} 360" fill="none" stroke="#b33a32" stroke-width="5" opacity=".6"/>` : '';
+    return `<svg viewBox="52 112 408 408" xmlns="http://www.w3.org/2000/svg">
+      <path d="M${256 - tw} 314 Q256 290 ${256 + tw} 314 L${256 + tw - 16} 540 L${256 - tw + 16} 540 Z" fill="${skin}"/>
+      <path d="M${256 - tw + 26} 330 Q256 312 ${256 + tw - 26} 330 L${256 + tw - 26} 540 L${256 - tw + 26} 540 Z" fill="#d9473f"/>
+      <path d="M228 324 Q256 354 284 324" fill="${skin}"/>
+      ${pecs}
+      <text x="256" y="452" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="46" fill="#f0b429">筋</text>
+      ${arm(-1)}${arm(1)}
+      <rect x="${256 - nw / 2}" y="250" width="${nw}" height="62" rx="12" fill="${skd}"/>
+      <circle cx="256" cy="218" r="58" fill="${skin}"/>
+      <path d="M198 214 Q200 156 256 156 Q312 156 314 214 Q300 186 256 186 Q212 186 198 214Z" fill="${ink}"/>
+      <rect x="198" y="192" width="116" height="18" rx="7" fill="#f0b429"/>
+      <path d="M310 198 l26 -10 -6 22z" fill="#f0b429"/>
+      <path d="M226 ${mood === 'grit' ? 224 : 226} l20 ${mood === 'grit' ? 7 : 5} M286 ${mood === 'grit' ? 224 : 226} l-20 ${mood === 'grit' ? 7 : 5}" stroke="${ink}" stroke-width="6" stroke-linecap="round"/>
+      ${eyes}${mouth}${extra}
+    </svg>`;
+  }
+  function kinCard(mood, text) {
+    return `<div class="kin kin-card"><div class="kin-av">${kinSvg(kinLevel(), mood)}</div><div class="bubble"><span class="who">筋一朗</span>${text}</div></div>`;
+  }
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  const KIN_PART = [
+    '今日は胸の日！ベンチで胸を張っていこう！',
+    '今日は背中の日。鬼の背中を作るぞ！',
+    '今日は脚の日！逃げるなよ！',
+    '今日は肩の日。メロン肩を目指そう！',
+    '今日は腕の日！パンプさせていこう！',
+    '今日は腹の日。シックスパック、見えてきたか？',
+    '次はコーチ戦だ。ブーストの準備はいいか？'
+  ];
+  const KIN_TIPS = [
+    '筋肉は休んでいる間に育つ。寝るのもトレーニングだ！',
+    'プロテインは1回20〜30gくらいが目安。飲みすぎても筋肉にはならないぞ',
+    'フォームが崩れたら重量を下げよう。ケガしたら元も子もない',
+    '同じ部位は2〜3日あけると回復しやすいぞ',
+    '水分補給を忘れるな！汗をかいたらこまめに飲もう',
+    'スクワットは下半身の王様。脚の日をサボるなよ',
+    '正方形にそろえるとダンベルができる。ボスめがけて飛んでいくぞ',
+    'ゴールデンプロテインは同じ色を全部消して、となりの障害物も壊せる！',
+    '道具は手数を使わない。あと1手が足りないときに頼れ！',
+    '毎日開けばログインボーナス。7日目は豪華だぞ'
+  ];
+  let kinTip = Math.floor(Math.random() * KIN_TIPS.length);
+  function kinSay(text, mood = 'normal') {
+    const lv = kinLevel();
+    $('kinAv').innerHTML = kinSvg(lv, mood);
+    const nextF = KIN_FORMS[lv + 1];
+    $('kinWho').textContent = `筋一朗 Lv.${lv + 1} ${KIN_FORMS[lv].name.replace('筋一朗', '') || 'ひょろ'}${nextF ? `（次の変身まであと${nextF.from - progress.unlocked}日）` : '（最終形態）'}`;
+    $('kinSay').textContent = text;
+    const av = $('kinAv'); av.classList.remove('bounce'); av.offsetWidth; av.classList.add('bounce');
+  }
+  function kinGreet(prevLogin) {
+    const lv = kinLevel();
+    if (progress.kinLv === undefined) { progress.kinLv = lv; save(); }
+    if (lv > progress.kinLv) {
+      progress.kinLv = lv; save();
+      SFX.spawn();
+      return kinSay(`見てくれ、パワーアップした！「${KIN_FORMS[lv].name}」になったぞ！`, 'cheer');
+    }
+    const ago = new Date(); ago.setDate(ago.getDate() - 2);
+    if (prevLogin && prevLogin < dayKey(ago)) return kinSay('おかえり！筋肉は待っててくれたぞ', 'cheer');
+    kinSay(KIN_PART[progress.unlocked % 7]);
+  }
+  $('kinAv').addEventListener('click', () => {
+    kinTip = (kinTip + 1) % KIN_TIPS.length;
+    kinSay(KIN_TIPS[kinTip], Math.random() < 0.3 ? 'cheer' : 'normal');
+    SFX.select();
+  });
+
   // ---------- ストック ----------
   const stock = id => (progress.inv && progress.inv[id]) || 0;
   const priceLabel = item => (stock(item.id) > 0 ? `ストック ×${stock(item.id)}` : `${item.price.toLocaleString()} kg`);
@@ -1210,6 +1346,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     const rw = LOGIN_REWARDS[idx];
     const cells = LOGIN_REWARDS.map((r, i) => `<div class="lb ${i < idx ? 'got' : ''} ${i === idx ? 'today' : ''}"><span class="lbd">${i + 1}日目</span>${rewardIcon(r)}<span class="lbn">${rewardText(r)}</span></div>`).join('');
     showOverlay(`
+      ${kinCard('cheer', '今日の差し入れだ！受け取れ！')}
       <div class="label">ログインボーナス</div>
       <div class="big" style="font-size:1.35rem">${streak}日連続ログイン！</div>
       <div class="lbgrid">${cells}</div>
@@ -1509,7 +1646,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     toast('<em>クリア！</em>');
     await sleep(900);
     showOverlay(
-      `<div class="big good">トレーニング完了！</div>
+      `${kinCard('cheer', stage.bossHp ? 'コーチに勝った！最高の筋肉だ！' : pick(['ナイスバルク！', 'キレてるよ！', '今日もいいパンプだ！', 'その調子、明日も来いよ！']))}
+       <div class="big good">トレーニング完了！</div>
        <div class="stars">${[0, 1, 2].map(k => STAR.replace('<svg', `<svg class="${k < stars ? 'on' : ''}" style="animation-delay:${k * 0.25}s"`)).join('')}</div>
        <p>${stage.name}　総挙上量 <b style="color:var(--chalk)">${score.toLocaleString()} kg</b><br>残り${left}手ボーナス +${bonus.toLocaleString()} kg</p>
        <p>貯めた重量 <b style="color:var(--accent)">${progress.kg.toLocaleString()} kg</b>（+${score.toLocaleString()}）</p>`,
@@ -1533,7 +1671,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     const rest = {};
     for (const t in goals) if (goals[t] > 0) rest[t] = goals[t];
     showOverlay(
-      `<div class="big">手数切れ…</div>
+      `${kinCard('grit', pick(['あと1レップ！もう一回いこう', '限界の先に成長がある！', 'ブーストや道具も使っていいんだぞ']))}
+       <div class="big">手数切れ…</div>
        <p>あと少し！残りの目標</p>
        <div class="goals" style="justify-content:center">${goalsHtml(rest)}</div>
        <p>挙げた重量の半分 +${earned.toLocaleString()} kg を貯めました</p>`,
