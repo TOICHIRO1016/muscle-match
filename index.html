@@ -146,6 +146,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   box-shadow: inset 0 -3px 0 rgba(0,0,0,.25);
 }
 .tool svg { width: 26px; height: 26px; fill: currentColor; color: var(--accent); }
+.tool .tp.free, .bst .price.free { color: var(--good); }
 .tool .tp { font-family: var(--display); font-weight: 400; font-size: .8rem; color: var(--accent); font-variant-numeric: tabular-nums; }
 .tool.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: var(--steel-d); }
 .tool:disabled { opacity: .35; cursor: default; }
@@ -156,6 +157,14 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   box-shadow: 0 4px 12px rgba(0,0,0,.4);
 }
 #board.aiming { box-shadow: 0 0 0 3px var(--accent); border-radius: 6px; }
+.lbgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; width: 100%; }
+.lb { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 2px; border-radius: 10px; background: var(--mat); border: 1px solid var(--mat-line); }
+.lb .mini { width: 28px; height: 28px; }
+.lbd { font-size: .62rem; font-weight: 700; color: var(--chalk-dim); }
+.lbn { font-size: .56rem; line-height: 1.25; color: var(--chalk); text-align: center; }
+.lb.got { opacity: .4; }
+.lb.today { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: var(--steel-d); }
+.lb.today .lbd { color: var(--accent); }
 .menu-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .xfer { width: 100%; display: flex; flex-direction: column; gap: 8px; text-align: left; }
 .xfer h3 { margin: 6px 0 0; font-size: .8rem; letter-spacing: .1em; color: var(--chalk-dim); }
@@ -403,7 +412,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div class="weeks" id="weeks"></div>
     <div class="menu-foot">
       <button class="pill" id="transfer" type="button">データ引き継ぎ</button>
-      <p class="legend">バージョン 2.4</p>
+      <p class="legend">バージョン 2.5</p>
     </div>
   </section>
 
@@ -577,6 +586,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     if (p && typeof p.unlocked === 'number') progress = p;
     // 初回：これまでの進み具合に応じて重量をプレゼント
     if (typeof progress.kg !== 'number') progress.kg = progress.unlocked * 300;
+    if (!progress.inv || typeof progress.inv !== 'object') progress.inv = {};
     soundOn = localStorage.getItem('mm-sound') !== 'off';
     seenGuide = localStorage.getItem('mm-guide3') === '1';
   } catch (e) {}
@@ -1086,12 +1096,13 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     const next = $('weeks').querySelector('.dayb.next');
     if (next) next.scrollIntoView({ block: 'center' });
     BGM.start('menu');
+    if (!$('overlay')) checkLogin();
   }
   // ---------- データ引き継ぎ ----------
   // 形式: MM1-<base64(JSON)>-<チェック用の数字>
   function checksum(str) { let h = 7; for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 999983; return h; }
   function exportCode() {
-    const b64 = btoa(JSON.stringify({ unlocked: progress.unlocked, stars: progress.stars, kg: progress.kg || 0 }));
+    const b64 = btoa(JSON.stringify({ unlocked: progress.unlocked, stars: progress.stars, kg: progress.kg || 0, inv: progress.inv || {}, lastLogin: progress.lastLogin || '', streak: progress.streak || 0 }));
     return `MM1-${b64}-${checksum(b64)}`;
   }
   function parseCode(code) {
@@ -1107,7 +1118,11 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       stars[k] = v;
     }
     const kg = Number.isInteger(d.kg) && d.kg >= 0 && d.kg < 1e10 ? d.kg : 0;
-    return { unlocked: d.unlocked, stars, kg };
+    const inv = {};
+    if (d.inv && typeof d.inv === 'object') for (const [k, v] of Object.entries(d.inv)) if (ITEM_NAMES[k] && Number.isInteger(v) && v >= 0 && v < 10000) inv[k] = v;
+    const lastLogin = typeof d.lastLogin === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.lastLogin) ? d.lastLogin : '';
+    const streak = Number.isInteger(d.streak) && d.streak >= 0 ? d.streak : 0;
+    return { unlocked: d.unlocked, stars, kg, inv, lastLogin, streak };
   }
   const sumStars = st => Object.values(st).reduce((a, b) => a + b, 0);
   function showTransfer() {
@@ -1139,7 +1154,9 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       const d = parseCode($('xIn').value);
       if (!d) { msg.textContent = 'コードが正しくありません。最初の「MM1-」から最後まで、全部コピーできているか確認してください'; msg.className = 'msg ng'; return; }
       try { localStorage.setItem('mm-progress-backup-' + Date.now(), JSON.stringify(progress)); } catch (e) {}
-      const merged = { unlocked: Math.max(progress.unlocked, d.unlocked), stars: { ...progress.stars }, kg: Math.max(progress.kg || 0, d.kg) };
+      const merged = { ...progress, unlocked: Math.max(progress.unlocked, d.unlocked), stars: { ...progress.stars }, kg: Math.max(progress.kg || 0, d.kg), inv: { ...(progress.inv || {}) } };
+      for (const [k, v] of Object.entries(d.inv)) merged.inv[k] = Math.max(merged.inv[k] || 0, v);
+      if (d.lastLogin && d.lastLogin > (progress.lastLogin || '')) { merged.lastLogin = d.lastLogin; merged.streak = d.streak; }
       for (const [k, v] of Object.entries(d.stars)) merged.stars[k] = Math.max(merged.stars[k] || 0, v);
       progress = merged;
       save();
@@ -1161,6 +1178,55 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   });
 
   // ---------- ステージ開始 ----------
+  // ---------- ストック ----------
+  const stock = id => (progress.inv && progress.inv[id]) || 0;
+  const priceLabel = item => (stock(item.id) > 0 ? `ストック ×${stock(item.id)}` : `${item.price.toLocaleString()} kg`);
+  const ITEM_NAMES = { punch: 'パンチ', row: '横一列', col: '縦一列', shuffle: 'ストレッチ', moves: 'プロテインバー', h: 'バーベル', bomb: 'メディシンボール', color: 'ゴールデンプロテイン' };
+
+  // ---------- ログインボーナス（7日でひとまわり） ----------
+  const LOGIN_REWARDS = [
+    { punch: 1 },
+    { h: 1 },
+    { shuffle: 1 },
+    { moves: 1 },
+    { row: 1, col: 1 },
+    { bomb: 1 },
+    { color: 1, punch: 2 }
+  ];
+  function dayKey(d = new Date()) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+  function rewardText(rw) { return Object.entries(rw).map(([k, n]) => `${ITEM_NAMES[k]}×${n}`).join('・'); }
+  function rewardIcon(rw) {
+    const k = Object.keys(rw)[0];
+    if (k === 'moves') return `<span class="mini" data-t="3">${ICONS[3]}</span>`;
+    if (TOOL_ICONS_G[k] || ['row', 'col'].includes(k)) return `<span class="mini" data-sp="h">${k === 'row' ? SP_ICONS.h : k === 'col' ? SP_ICONS.v : TOOL_ICONS_G[k]}</span>`;
+    return `<span class="mini" data-sp="${k}">${SP_ICONS[k]}</span>`;
+  }
+  function checkLogin() {
+    const today = dayKey();
+    if (progress.lastLogin === today) return;
+    const y = new Date(); y.setDate(y.getDate() - 1);
+    const streak = progress.lastLogin === dayKey(y) ? (progress.streak || 0) + 1 : 1;
+    const idx = (streak - 1) % 7;
+    const rw = LOGIN_REWARDS[idx];
+    const cells = LOGIN_REWARDS.map((r, i) => `<div class="lb ${i < idx ? 'got' : ''} ${i === idx ? 'today' : ''}"><span class="lbd">${i + 1}日目</span>${rewardIcon(r)}<span class="lbn">${rewardText(r)}</span></div>`).join('');
+    showOverlay(`
+      <div class="label">ログインボーナス</div>
+      <div class="big" style="font-size:1.35rem">${streak}日連続ログイン！</div>
+      <div class="lbgrid">${cells}</div>
+      <p>今日のボーナス<br><b style="color:var(--accent)">${rewardText(rw)}</b></p>
+      <p style="font-size:.75rem">もらったアイテムはストックされ、ブーストや道具で重量を払わずに使えます。1日休むと1日目に戻ります</p>`,
+      [{ label: '受け取る', fn: () => {
+        if (progress.lastLogin !== today) {
+          for (const [k, n] of Object.entries(rw)) progress.inv[k] = (progress.inv[k] || 0) + n;
+          progress.lastLogin = today;
+          progress.streak = streak;
+          save();
+          SFX.clear();
+        }
+        hideOverlay();
+      } }]);
+  }
+
   // ---------- 道具（手数を使わずに使える。貯めた重量で払う） ----------
   const TOOL_ICONS = {
     punch: '<svg viewBox="0 0 40 40"><path d="M13 13a6 6 0 0 1 6-6h7a8 8 0 0 1 8 8v9a8 8 0 0 1-8 8h-7a6 6 0 0 1-6-6z"/><path d="M13 23h-3.5a3.5 3.5 0 0 1 0-7H13z"/><rect x="13" y="31" width="19" height="6" rx="2"/></svg>',
@@ -1175,14 +1241,17 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     { id: 'shuffle', name: 'ストレッチ', price: 2000, tip: '' }
   ];
   let aiming = null;
-  $('toolbar').innerHTML = TOOLS.map(t => `<button type="button" class="tool" data-tool="${t.id}">${TOOL_ICONS[t.id]}<span>${t.name}</span><span class="tp">${t.price.toLocaleString()}kg</span></button>`).join('');
+  $('toolbar').innerHTML = TOOLS.map(t => `<button type="button" class="tool" data-tool="${t.id}">${TOOL_ICONS[t.id]}<span>${t.name}</span><span class="tp"></span></button>`).join('');
   function renderTools() {
     const kg = progress.kg || 0;
     $('walletG').textContent = kg.toLocaleString();
     document.querySelectorAll('.tool').forEach(btn => {
       const t = TOOLS.find(x => x.id === btn.dataset.tool);
       btn.classList.toggle('on', aiming === t.id);
-      btn.disabled = aiming !== t.id && t.price > kg;
+      btn.disabled = aiming !== t.id && stock(t.id) <= 0 && t.price > kg;
+      const tp = btn.querySelector('.tp');
+      tp.textContent = priceLabel(t);
+      tp.classList.toggle('free', stock(t.id) > 0);
     });
     board.classList.toggle('aiming', !!aiming);
     const tip = $('aimtip');
@@ -1203,10 +1272,11 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     renderTools();
   });
   async function useTool(t, r, c) {
-    if (busy || (progress.kg || 0) < t.price) { cancelAim(); return; }
+    const free = stock(t.id) > 0;
+    if (busy || (!free && (progress.kg || 0) < t.price)) { cancelAim(); return; }
     busy = true;
     aiming = null;
-    progress.kg -= t.price;
+    if (free) progress.inv[t.id]--; else progress.kg -= t.price;
     save();
     renderTools();
     clearHint(); clearSel();
@@ -1261,26 +1331,28 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     const sel = new Set();
     const boostHtml = () => `
        <div class="label">ブースト（貯めた重量で使える）</div>
-       <div class="boost">${BOOSTS.map(b => `<button type="button" class="bst" data-b="${b.id}"><span class="mini" ${b.sp ? `data-sp="${b.sp}"` : 'data-t="3"'}>${b.sp ? SP_ICONS[b.sp] : ICONS[3]}</span><span class="bt">${b.name}<small>${b.desc}</small><b class="price">${b.price.toLocaleString()} kg</b></span></button>`).join('')}</div>
+       <div class="boost">${BOOSTS.map(b => `<button type="button" class="bst" data-b="${b.id}"><span class="mini" ${b.sp ? `data-sp="${b.sp}"` : 'data-t="3"'}>${b.sp ? SP_ICONS[b.sp] : ICONS[3]}</span><span class="bt">${b.name}<small>${b.desc}</small><b class="price ${stock(b.id) > 0 ? 'free' : ''}">${priceLabel(b)}</b></span></button>`).join('')}</div>
        <p class="wallet-line" id="walletLine"></p>`;
+    const costOf = id => (stock(id) > 0 ? 0 : BOOSTS.find(b => b.id === id).price);
     const refreshBoost = () => {
-      const cost = [...sel].reduce((a, id) => a + BOOSTS.find(b => b.id === id).price, 0);
+      const cost = [...sel].reduce((a, id) => a + costOf(id), 0);
       const left = (progress.kg || 0) - cost;
       document.querySelectorAll('.bst').forEach(btn => {
         const b = BOOSTS.find(x => x.id === btn.dataset.b);
         const on = sel.has(b.id);
         btn.classList.toggle('on', on);
-        btn.disabled = !on && b.price > left;
+        btn.disabled = !on && costOf(b.id) > left;
         btn.setAttribute('aria-pressed', String(on));
       });
       const wl = $('walletLine');
       if (wl) wl.innerHTML = `所持 <b>${(progress.kg || 0).toLocaleString()} kg</b>${cost ? ` → 使ったあと <b>${left.toLocaleString()} kg</b>` : ''}`;
     };
     const startPlay = () => {
-      const cost = [...sel].reduce((a, id) => a + BOOSTS.find(b => b.id === id).price, 0);
+      const cost = [...sel].reduce((a, id) => a + costOf(id), 0);
       if (cost > (progress.kg || 0)) sel.clear();
       hideOverlay(); SFX.start();
       if (sel.size) {
+        for (const id of sel) { if (stock(id) > 0) progress.inv[id]--; }
         progress.kg -= cost; save();
         applyBoosts([...sel]);
       }
